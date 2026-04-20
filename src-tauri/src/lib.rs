@@ -12,6 +12,22 @@ struct AppState {
 }
 
 #[tauri::command]
+async fn disconnect_ssh(
+    name: &str, 
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    {
+        let mut sessions = state.sessions.lock().unwrap();
+        sessions.remove(name);
+    }
+    {
+        let mut senders = state.senders.lock().unwrap();
+        senders.remove(name);
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn connect_ssh(
     name: &str, 
     host: &str, 
@@ -68,13 +84,22 @@ async fn open_terminal(
         session.set_blocking(false);
         
         println!("Terminal thread started for: {}", server_name);
+        let session_mutex = session.get_session();
 
         loop {
             // 1. Read from SSH (Non-blocking)
-            match channel.read(&mut buffer) {
+            let read_res = {
+                let _lock = session_mutex.lock().unwrap();
+                channel.read(&mut buffer)
+            };
+
+            match read_res {
                 Ok(n) if n > 0 => {
                     let data = buffer[..n].to_vec();
-                    window.emit("ssh-data", data).unwrap();
+                    window.emit("ssh-data", serde_json::json!({
+                        "server": server_name,
+                        "data": data
+                    })).unwrap();
                 }
                 Ok(_) => {}, // No data yet (or EOF)
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -90,7 +115,12 @@ async fn open_terminal(
             if let Ok(input) = rx.try_recv() {
                 let mut written = 0;
                 while written < input.len() {
-                    match channel.write(&input[written..]) {
+                    let write_res = {
+                        let _lock = session_mutex.lock().unwrap();
+                        channel.write(&input[written..])
+                    };
+
+                    match write_res {
                         Ok(n) => {
                             written += n;
                         }
@@ -103,9 +133,6 @@ async fn open_terminal(
                             break;
                         }
                     }
-                }
-                if written > 0 {
-                    // println!("Wrote {} bytes to SSH", written);
                 }
             }
             
@@ -142,6 +169,69 @@ async fn review_command_risk(command: &str, api_key: &str) -> Result<String, Str
     deepseek::analyze_risk(command, api_key).await
 }
 
+mod xshell;
+
+#[tauri::command]
+async fn import_xshell_sessions(paths: Vec<String>) -> Result<Vec<xshell::XshellSession>, String> {
+    let mut results = Vec::new();
+    for path_str in paths {
+        let path = std::path::Path::new(&path_str);
+        let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
+        
+        if ext == "xts" {
+            let mut xts_sessions = xshell::parse_xts_file(path)?;
+            results.append(&mut xts_sessions);
+        } else {
+            let session = xshell::parse_xsh_file(path)?;
+            results.push(session);
+        }
+    }
+    Ok(results)
+}
+
+#[tauri::command]
+async fn list_remote_files(
+    server_name: &str,
+    path: &str,
+    state: State<'_, AppState>
+) -> Result<Vec<ssh_manager::RemoteFile>, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(server_name) {
+        session.list_directory(path)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn delete_remote_file(
+    server_name: &str,
+    path: &str,
+    is_dir: bool,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(server_name) {
+        session.delete_file(path, is_dir)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn download_remote_file(
+    server_name: &str,
+    path: &str,
+    state: State<'_, AppState>
+) -> Result<Vec<u8>, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(server_name) {
+        session.download_file(path)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -166,16 +256,32 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(
+            tauri_plugin_sql::Builder::default()
+                .add_migrations("sqlite:chat_ssh.db", vec![
+                    tauri_plugin_sql::Migration {
+                        version: 1,
+                        description: "initial",
+                        sql: include_str!("../migrations/initial.sql"),
+                        kind: tauri_plugin_sql::MigrationKind::Up,
+                    }
+                ])
+                .build()
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
+            disconnect_ssh,
             connect_ssh, 
             upload_to_server,
             open_terminal,
             write_to_terminal,
             generate_ai_command, 
-            review_command_risk
+            review_command_risk,
+            import_xshell_sessions,
+            list_remote_files,
+            delete_remote_file,
+            download_remote_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

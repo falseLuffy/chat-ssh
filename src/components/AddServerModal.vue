@@ -12,6 +12,7 @@ const serverStore = useServerStore();
 
 const name = ref('');
 const host = ref('');
+const port = ref(22);
 const username = ref('');
 const password = ref('');
 
@@ -19,25 +20,27 @@ onMounted(() => {
   if (props.editServer) {
     name.value = props.editServer.name;
     host.value = props.editServer.host;
+    port.value = props.editServer.port || 22;
     username.value = props.editServer.username;
+    password.value = props.editServer.password || '';
   }
 });
 
 const handleSave = () => {
   if (!name.value || !host.value || !username.value) return;
   
+  const serverData = {
+    name: name.value,
+    host: host.value,
+    port: port.value,
+    username: username.value,
+    password: password.value,
+  };
+
   if (props.editServer) {
-    serverStore.updateServer(props.editServer.id, {
-      name: name.value,
-      host: host.value,
-      username: username.value,
-    });
+    serverStore.updateServer(props.editServer.id, serverData);
   } else {
-    serverStore.addServer({
-      name: name.value,
-      host: host.value,
-      username: username.value,
-    });
+    serverStore.addServer(serverData);
   }
   
   emit('close');
@@ -69,11 +72,17 @@ const handleSave = () => {
             </div>
           </div>
 
-          <div class="space-y-1">
-            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">主机地址 (IP/Host)</label>
-            <div class="relative">
-              <ServerIcon class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" :size="16" />
-              <input v-model="host" type="text" placeholder="1.2.3.4" class="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-sm text-slate-200" />
+          <div class="grid grid-cols-3 gap-4">
+            <div class="col-span-2 space-y-1">
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">主机地址 (IP/Host)</label>
+              <div class="relative">
+                <ServerIcon class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" :size="16" />
+                <input v-model="host" type="text" placeholder="1.2.3.4" class="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-sm text-slate-200" />
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">端口</label>
+              <input v-model.number="port" type="number" class="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-sm text-slate-200" />
             </div>
           </div>
 

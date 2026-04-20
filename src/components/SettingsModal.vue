@@ -11,6 +11,7 @@ const model = ref('deepseek-chat');
 const showKey = ref(false);
 const isSaving = ref(false);
 const saveSuccess = ref(false);
+const errorMessage = ref('');
 
 onMounted(async () => {
   await settingsStore.loadSettings();
@@ -21,6 +22,7 @@ onMounted(async () => {
 const handleSave = async () => {
   isSaving.value = true;
   saveSuccess.value = false;
+  errorMessage.value = '';
   try {
     await settingsStore.saveSettings(apiKey.value, model.value);
     saveSuccess.value = true;
@@ -29,6 +31,7 @@ const handleSave = async () => {
     }, 1000);
   } catch (error) {
     console.error(error);
+    errorMessage.value = '保存失败: ' + (error instanceof Error ? error.message : String(error));
   } finally {
     isSaving.value = false;
   }
@@ -82,6 +85,10 @@ const handleSave = async () => {
               <option value="deepseek-chat">DeepSeek-V3 (Chat)</option>
               <option value="deepseek-reasoner">DeepSeek-R1 (Reasoner)</option>
             </select>
+          </div>
+
+          <div v-if="errorMessage" class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs animate-in shake duration-300">
+            {{ errorMessage }}
           </div>
         </div>
 
