@@ -82,7 +82,7 @@
     term.open(container);
     fitAddon.fit();
 
-    term.writeln('\x1b[1;34mChat-SSH 终端已挂载 - ' + server.host + '\x1b[0m');
+    term.writeln('\x1b[1;34mAI-SSH 终端已挂载 - ' + server.host + '\x1b[0m');
 
     term.onData(async (data) => {
       const bytes = new TextEncoder().encode(data);
@@ -255,7 +255,7 @@
     <!-- Custom Context Menu -->
     <Teleport to="body">
       <div v-if="showContextMenu" 
-        class="fixed z-[100] w-40 bg-[#1e293b] border border-slate-700 rounded-xl shadow-2xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+        class="fixed z-[100] w-40 bg-[#1e293b]/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
       >
         <button @click="copySelection" class="w-full text-left px-3 py-2 text-xs hover:bg-blue-600 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/menu">

@@ -15,6 +15,7 @@ const isUploading = ref(false);
 const isDownloading = ref(false);
 const errorMessage = ref('');
 const viewMode = ref<'grid' | 'list'>((localStorage.getItem('ssh_view_mode') as 'grid' | 'list') || 'list');
+const isDragging = ref(false);
 
 // Persist view mode changes
 watch(viewMode, (newMode) => {
@@ -91,6 +92,29 @@ const formatSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+const uploadFile = async (fileName: string, content: Uint8Array) => {
+  if (!serverStore.activeServer) return;
+  
+  isUploading.value = true;
+  try {
+    const remotePath = currentPath.value === '/' 
+      ? `/${fileName}` 
+      : `${currentPath.value}/${fileName}`;
+    
+    await invoke('upload_to_server', {
+      serverName: serverStore.activeServer.name,
+      remotePath,
+      fileContent: Array.from(content), 
+    });
+    
+    await loadFiles();
+  } catch (error) {
+    console.error('上传失败:', error);
+  } finally {
+    isUploading.value = false;
+  }
+};
+
 const handleUpload = async () => {
   if (!serverStore.activeServer) return;
 
@@ -101,25 +125,26 @@ const handleUpload = async () => {
     });
 
     if (selected && typeof selected === 'string') {
-      isUploading.value = true;
       const content = await readFile(selected);
-      const fileName = selected.split(/[\\/]/).pop();
-      const remotePath = currentPath.value.endsWith('/') 
-        ? `${currentPath.value}${fileName}` 
-        : `${currentPath.value}/${fileName}`;
-      
-      await invoke('upload_to_server', {
-        serverName: serverStore.activeServer.name,
-        remotePath,
-        fileContent: Array.from(content), 
-      });
-      
-      await loadFiles();
+      const fileName = selected.split(/[\\/]/).pop() || 'uploaded_file';
+      await uploadFile(fileName, content);
     }
   } catch (error) {
-    console.error('上传失败:', error);
-  } finally {
-    isUploading.value = false;
+    console.error('选择文件失败:', error);
+  }
+};
+
+const handleDrop = async (e: DragEvent) => {
+  isDragging.value = false;
+  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') return;
+  
+  const droppedFiles = e.dataTransfer?.files;
+  if (droppedFiles && droppedFiles.length > 0) {
+    for (let i = 0; i < droppedFiles.length; i++) {
+      const file = droppedFiles[i];
+      const buffer = await file.arrayBuffer();
+      await uploadFile(file.name, new Uint8Array(buffer));
+    }
   }
 };
 
@@ -178,6 +203,8 @@ const handleDelete = async (file: any) => {
 const handleContextMenu = (e: MouseEvent, file: any = null) => {
   e.preventDefault();
   contextMenuPos.value = { x: e.clientX, y: e.clientY };
+  contextMenuFile.value = file;
+  showContextMenu.value = true;
   contextMenuFile.value = file;
   showContextMenu.value = true;
   
@@ -335,7 +362,21 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
     </div>
 
     <!-- File List -->
-    <div v-else @contextmenu="handleContextMenu($event)" class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+    <div v-else 
+      @contextmenu="handleContextMenu($event)" 
+      @dragover.prevent="isDragging = true"
+      @dragleave.prevent="isDragging = false"
+      @drop.prevent="handleDrop"
+      :class="['flex-1 overflow-y-auto p-4 custom-scrollbar relative transition-colors', isDragging ? 'bg-blue-600/10' : '']"
+    >
+      <!-- Drag Overlay -->
+      <div v-if="isDragging" class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+        <div class="bg-blue-600 border border-blue-400 text-white px-8 py-4 rounded-3xl shadow-2xl flex flex-col items-center space-y-2 animate-in zoom-in duration-200">
+          <Upload :size="48" class="animate-bounce" />
+          <span class="text-lg font-bold">释放以上传到 {{ currentPath }}</span>
+        </div>
+      </div>
+
       <div v-if="isLoading && files.length === 0" class="h-full flex items-center justify-center">
         <Loader2 class="animate-spin text-blue-500" :size="32" />
       </div>
@@ -375,15 +416,6 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
               <Folder v-if="file.is_dir" :size="24" />
               <File v-else :size="24" />
             </div>
-            
-            <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-[-4px] group-hover:translate-y-0">
-              <button v-if="!file.is_dir" @click.stop="handleDownload(file)" class="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-400 hover:text-white transition-colors" title="下载">
-                <Download :size="14" />
-              </button>
-              <button @click.stop="handleDelete(file)" class="p-1.5 hover:bg-red-500/10 rounded-lg text-red-500/70 hover:text-red-500 transition-colors" title="删除">
-                <Trash2 :size="14" />
-              </button>
-            </div>
           </div>
           
           <div class="min-w-0">
@@ -403,7 +435,6 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
           <div class="flex-1">名称</div>
           <div class="w-24 text-right">大小</div>
           <div class="w-32 text-right">修改日期</div>
-          <div class="w-16"></div>
         </div>
         
         <!-- Parent Directory Item -->
@@ -416,7 +447,6 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
           </div>
           <div class="w-24 text-right text-[10px]">-</div>
           <div class="w-32 text-right text-[10px]">-</div>
-          <div class="w-16"></div>
         </div>
 
         <div 
@@ -435,10 +465,6 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
           </div>
           <div class="w-24 text-right text-[10px] text-slate-500">{{ file.is_dir ? '-' : formatSize(file.size) }}</div>
           <div class="w-32 text-right text-[10px] text-slate-500">{{ file.modified ? new Date(file.modified * 1000).toLocaleDateString() : '-' }}</div>
-          <div class="w-16 flex justify-end space-x-1 opacity-0 group-hover:opacity-100">
-            <button v-if="!file.is_dir" @click.stop="handleDownload(file)" class="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors" title="下载"><Download :size="12" /></button>
-            <button @click.stop="handleDelete(file)" class="p-1 hover:bg-red-500/10 rounded text-red-500/70 hover:text-red-500 transition-colors" title="删除"><Trash2 :size="12" /></button>
-          </div>
         </div>
       </div>
     </div>
@@ -452,7 +478,6 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
       <div class="text-[10px] text-slate-500">{{ files.length }} 个项目</div>
     </div>
 
-    <!-- Custom Context Menu -->
     <Teleport to="body">
       <div v-if="showContextMenu" 
         class="fixed z-[100] w-48 bg-[#1e293b]/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"

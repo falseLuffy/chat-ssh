@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, watch } from 'vue';
   import { invoke } from '@tauri-apps/api/core';
   import { useSettingsStore } from '../stores/settings';
   import { Sparkles, Play, ShieldAlert, Loader2, Copy, AlertTriangle, MessageSquare, Minimize2, Maximize2, User, CheckCircle } from 'lucide-vue-next';
@@ -11,7 +11,12 @@
   const isReviewing = ref(false);
   const riskAssessment = ref('');
   const isExecuted = ref(false);
-  const viewState = ref<'minimized' | 'compact' | 'full'>('minimized');
+  const viewState = ref<'minimized' | 'compact' | 'full'>((localStorage.getItem('ssh_ai_view_state') as 'minimized' | 'compact' | 'full') || 'minimized');
+
+  // Persist view state
+  watch(viewState, (newState) => {
+    localStorage.setItem('ssh_ai_view_state', newState);
+  });
 
   onMounted(async () => {
     if (!settingsStore.isLoaded) {

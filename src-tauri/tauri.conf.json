@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-app",
+  "productName": "AI-SSH",
   "version": "0.1.0",
-  "identifier": "com.chat-ssh.app",
+  "identifier": "com.ai-ssh.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-app",
+        "title": "AI-SSH",
         "width": 800,
         "height": 600
       }
