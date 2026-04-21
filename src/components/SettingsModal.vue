@@ -8,6 +8,7 @@ const settingsStore = useSettingsStore();
 
 const apiKey = ref('');
 const model = ref('deepseek-chat');
+const aiMode = ref<'auto' | 'local' | 'ai'>('auto');
 const showKey = ref(false);
 const isSaving = ref(false);
 const saveSuccess = ref(false);
@@ -17,6 +18,7 @@ onMounted(async () => {
   await settingsStore.loadSettings();
   apiKey.value = settingsStore.deepseekApiKey;
   model.value = settingsStore.selectedModel;
+  aiMode.value = settingsStore.aiMode;
 });
 
 const handleSave = async () => {
@@ -24,7 +26,7 @@ const handleSave = async () => {
   saveSuccess.value = false;
   errorMessage.value = '';
   try {
-    await settingsStore.saveSettings(apiKey.value, model.value);
+    await settingsStore.saveSettings(apiKey.value, model.value, aiMode.value);
     saveSuccess.value = true;
     setTimeout(() => {
       emit('close');
@@ -85,6 +87,28 @@ const handleSave = async () => {
               <option value="deepseek-chat">DeepSeek-V3 (Chat)</option>
               <option value="deepseek-reasoner">DeepSeek-R1 (Reasoner)</option>
             </select>
+          </div>
+
+          <div class="space-y-3">
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">检索模式</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button 
+                v-for="mode in ['auto', 'local', 'ai']" 
+                :key="mode"
+                @click="aiMode = mode as any"
+                :class="[
+                  'py-2 px-1 text-[10px] font-bold rounded-lg border transition-all',
+                  aiMode === mode 
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-400' 
+                    : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600'
+                ]"
+              >
+                {{ mode === 'auto' ? '自动 (推荐)' : mode === 'local' ? '仅本地库' : '仅 AI 引擎' }}
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-500 italic">
+              {{ aiMode === 'auto' ? '优先使用本地知识库，匹配失败时调用 AI。' : aiMode === 'local' ? '完全关闭网络 AI，仅从本地指令集中检索。' : '跳过本地库，所有指令均由 AI 引擎生成。' }}
+            </p>
           </div>
 
           <div v-if="errorMessage" class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs animate-in shake duration-300">

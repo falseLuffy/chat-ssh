@@ -2,15 +2,21 @@
   import { ref, onMounted, watch } from 'vue';
   import { invoke } from '@tauri-apps/api/core';
   import { useSettingsStore } from '../stores/settings';
-  import { Sparkles, Play, ShieldAlert, Loader2, Copy, AlertTriangle, MessageSquare, Minimize2, Maximize2, User, CheckCircle } from 'lucide-vue-next';
+  import { useKnowledgeStore } from '../stores/knowledge';
+  import { Sparkles, Play, ShieldAlert, Loader2, Copy, AlertTriangle, MessageSquare, Minimize2, Maximize2, User, CheckCircle, BookOpen, Star, BookMarked } from 'lucide-vue-next';
 
   const settingsStore = useSettingsStore();
+  const knowledgeStore = useKnowledgeStore();
 
   const prompt = ref('');
   const isGenerating = ref(false);
   const isReviewing = ref(false);
   const riskAssessment = ref('');
   const isExecuted = ref(false);
+  const isSavingToKB = ref(false);
+  const saveToKBSuccess = ref(false);
+  const generatedCommand = ref('');
+  const commandSource = ref<'ai' | 'local'>('ai');
   const viewState = ref<'minimized' | 'compact' | 'full'>((localStorage.getItem('ssh_ai_view_state') as 'minimized' | 'compact' | 'full') || 'minimized');
 
   // Persist view state
@@ -26,22 +32,53 @@
 
   const generateCommand = async () => {
     if (!prompt.value) return;
-    isGenerating.value = true;
     generatedCommand.value = '';
     riskAssessment.value = '';
+    commandSource.value = 'ai';
+    saveToKBSuccess.value = false;
 
+    // 1. Try Local Lookup (if mode is auto or local)
+    if (settingsStore.aiMode !== 'ai') {
+      const localMatch = knowledgeStore.searchLocal(prompt.value);
+      if (localMatch) {
+        generatedCommand.value = localMatch.command;
+        commandSource.value = 'local';
+        isGenerating.value = false;
+        return;
+      }
+      
+      // If local only and no match, quit
+      if (settingsStore.aiMode === 'local') {
+        generatedCommand.value = '未在本地知识库中找到匹配指令。';
+        isGenerating.value = false;
+        return;
+      }
+    }
+
+    // 2. AI Generation fallback
     try {
       const res = await invoke<string>('generate_ai_command', {
         prompt: prompt.value,
         apiKey: settingsStore.deepseekApiKey || ''
       });
-      generatedCommand.value = res;
+      generatedCommand.value = res.trim();
+      commandSource.value = 'ai';
     } catch (e) {
       console.error(e);
       generatedCommand.value = '生成失败，请检查设置中的 API Key 或网络。';
     } finally {
       isGenerating.value = false;
     }
+  };
+
+  const saveToKB = () => {
+    if (!generatedCommand.value || commandSource.value === 'local') return;
+    isSavingToKB.value = true;
+    const result = knowledgeStore.addCommand(generatedCommand.value, prompt.value || 'AI 生成的指令');
+    if (result.success) {
+      saveToKBSuccess.value = true;
+    }
+    isSavingToKB.value = false;
   };
 
   const reviewCommand = async () => {
@@ -98,9 +135,12 @@
       <div class="px-5 py-3 border-b border-slate-800/50 flex items-center justify-between bg-white/5">
         <div class="flex items-center space-x-2">
           <div class="p-1.5 bg-blue-500/20 rounded-lg text-blue-400">
-            <Sparkles :size="16" />
+            <Sparkles v-if="settingsStore.aiMode !== 'local'" :size="16" />
+            <BookOpen v-else :size="16" />
           </div>
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">DeepSeek AI 助手</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
+            {{ settingsStore.aiMode === 'local' ? '本地指令检索' : 'DeepSeek AI 助手' }}
+          </span>
         </div>
         <div class="flex items-center space-x-1">
           <button @click="viewState = viewState === 'full' ? 'compact' : 'full'"
@@ -135,8 +175,23 @@
           <!-- Generated Command Display -->
           <div v-if="generatedCommand" class="flex flex-col p-3 bg-black/40 rounded-xl group border border-slate-800">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">建议指令</span>
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">建议指令</span>
+                <span v-if="commandSource === 'local'" class="flex items-center space-x-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded text-[9px] border border-blue-500/20">
+                  <BookOpen :size="10" />
+                  <span>本地库</span>
+                </span>
+                <span v-else class="flex items-center space-x-1 px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded text-[9px] border border-purple-500/20">
+                  <Sparkles :size="10" />
+                  <span>AI 生成</span>
+                </span>
+              </div>
               <div class="flex space-x-1">
+                <button v-if="commandSource === 'ai'" @click="saveToKB" :disabled="saveToKBSuccess"
+                  class="p-1.5 hover:bg-blue-500/20 text-blue-400 disabled:text-emerald-500 rounded-lg transition-colors" title="存入本地知识库">
+                  <BookMarked v-if="saveToKBSuccess" :size="14" />
+                  <Star v-else :size="14" />
+                </button>
                 <button @click="reviewCommand" :disabled="isReviewing"
                   class="p-1.5 hover:bg-amber-500/20 text-amber-500 rounded-lg transition-colors" title="审查风险">
                   <Loader2 v-if="isReviewing" class="animate-spin" :size="14" />

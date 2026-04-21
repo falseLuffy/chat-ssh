@@ -1,0 +1,4994 @@
+[
+  {
+    "command": "ls -l",
+    "description": "以长格式列出当前目录下的文件和目录（包含权限、所有者、大小等）",
+    "tags": [
+      "ls",
+      "list",
+      "file",
+      "directory",
+      "文件",
+      "列表"
+    ]
+  },
+  {
+    "command": "ls -a",
+    "description": "列出所有文件，包括以 . 开头的隐藏文件",
+    "tags": [
+      "ls",
+      "hidden",
+      "list",
+      "隐藏文件"
+    ]
+  },
+  {
+    "command": "ls -lh",
+    "description": "以人类可读的格式（如 KB, MB）显示文件大小",
+    "tags": [
+      "ls",
+      "size",
+      "readable",
+      "大小"
+    ]
+  },
+  {
+    "command": "ls -t",
+    "description": "按文件修改时间排序显示",
+    "tags": [
+      "ls",
+      "sort",
+      "time",
+      "排序"
+    ]
+  },
+  {
+    "command": "ls -r",
+    "description": "逆序显示列表内容",
+    "tags": [
+      "ls",
+      "reverse",
+      "sort",
+      "逆序"
+    ]
+  },
+  {
+    "command": "ls -S",
+    "description": "按文件大小排序显示",
+    "tags": [
+      "ls",
+      "sort",
+      "size",
+      "大小"
+    ]
+  },
+  {
+    "command": "cd ~",
+    "description": "切换到当前用户的家目录",
+    "tags": [
+      "cd",
+      "home",
+      "directory",
+      "切换"
+    ]
+  },
+  {
+    "command": "cd ..",
+    "description": "切换到上一级目录",
+    "tags": [
+      "cd",
+      "parent",
+      "directory",
+      "返回"
+    ]
+  },
+  {
+    "command": "cd -",
+    "description": "切换到上一次所在的目录",
+    "tags": [
+      "cd",
+      "previous",
+      "directory",
+      "回退"
+    ]
+  },
+  {
+    "command": "pwd",
+    "description": "显示当前工作目录的绝对路径",
+    "tags": [
+      "pwd",
+      "directory",
+      "path",
+      "路径"
+    ]
+  },
+  {
+    "command": "mkdir -p dir1/dir2",
+    "description": "递归创建多层目录",
+    "tags": [
+      "mkdir",
+      "directory",
+      "create",
+      "递归"
+    ]
+  },
+  {
+    "command": "rm -rf directory",
+    "description": "强制递归删除目录及其所有内容（小心使用！）",
+    "tags": [
+      "rm",
+      "delete",
+      "remove",
+      "force",
+      "删除"
+    ]
+  },
+  {
+    "command": "cp -r src_dir dest_dir",
+    "description": "递归复制整个目录",
+    "tags": [
+      "cp",
+      "copy",
+      "directory",
+      "复制"
+    ]
+  },
+  {
+    "command": "cp -p file1 file2",
+    "description": "复制文件并保留原有的属性（如权限、时间戳）",
+    "tags": [
+      "cp",
+      "copy",
+      "preserve",
+      "属性"
+    ]
+  },
+  {
+    "command": "mv old_name new_name",
+    "description": "重命名文件或目录",
+    "tags": [
+      "mv",
+      "rename",
+      "move",
+      "重命名"
+    ]
+  },
+  {
+    "command": "touch file",
+    "description": "创建一个空文件或更新现有文件的时间戳",
+    "tags": [
+      "touch",
+      "file",
+      "create",
+      "创建"
+    ]
+  },
+  {
+    "command": "ln -s target link_name",
+    "description": "创建指向目标文件的软链接（快捷方式）",
+    "tags": [
+      "ln",
+      "link",
+      "symbolic",
+      "软链接"
+    ]
+  },
+  {
+    "command": "cat file",
+    "description": "连接并显示文件内容",
+    "tags": [
+      "cat",
+      "view",
+      "content",
+      "查看"
+    ]
+  },
+  {
+    "command": "less file",
+    "description": "分页查看长文件内容（支持上下翻页和搜索）",
+    "tags": [
+      "less",
+      "view",
+      "page",
+      "查看"
+    ]
+  },
+  {
+    "command": "head -n 20 file",
+    "description": "显示文件的前 20 行",
+    "tags": [
+      "head",
+      "view",
+      "top",
+      "前几行"
+    ]
+  },
+  {
+    "command": "tail -n 20 file",
+    "description": "显示文件的最后 20 行",
+    "tags": [
+      "tail",
+      "view",
+      "bottom",
+      "后几行"
+    ]
+  },
+  {
+    "command": "grep -i \"pattern\" file",
+    "description": "在文件中搜索字符串，忽略大小写",
+    "tags": [
+      "grep",
+      "search",
+      "ignore-case",
+      "搜索"
+    ]
+  },
+  {
+    "command": "grep -v \"pattern\" file",
+    "description": "显示不包含特定模式的行（反向过滤）",
+    "tags": [
+      "grep",
+      "exclude",
+      "filter",
+      "排序"
+    ]
+  },
+  {
+    "command": "grep -c \"pattern\" file",
+    "description": "统计匹配模式的行数",
+    "tags": [
+      "grep",
+      "count",
+      "统计"
+    ]
+  },
+  {
+    "command": "grep -l \"pattern\" *",
+    "description": "只列出包含匹配模式的文件名",
+    "tags": [
+      "grep",
+      "list-files",
+      "文件名"
+    ]
+  },
+  {
+    "command": "sed -i 's/old/new/g' file",
+    "description": "在文件中全局替换字符串并保存更改",
+    "tags": [
+      "sed",
+      "replace",
+      "edit",
+      "替换"
+    ]
+  },
+  {
+    "command": "awk '{print $1}' file",
+    "description": "打印文件的第一列内容",
+    "tags": [
+      "awk",
+      "column",
+      "print",
+      "处理"
+    ]
+  },
+  {
+    "command": "sort file",
+    "description": "对文件行进行排序",
+    "tags": [
+      "sort",
+      "order",
+      "排序"
+    ]
+  },
+  {
+    "command": "uniq -c file",
+    "description": "去除重复行并统计出现次数",
+    "tags": [
+      "uniq",
+      "count",
+      "unique",
+      "去重"
+    ]
+  },
+  {
+    "command": "wc -l file",
+    "description": "统计文件的行数",
+    "tags": [
+      "wc",
+      "line",
+      "count",
+      "统计"
+    ]
+  },
+  {
+    "command": "diff file1 file2",
+    "description": "比较两个文件的差异",
+    "tags": [
+      "diff",
+      "compare",
+      "差异"
+    ]
+  },
+  {
+    "command": "chmod 755 file",
+    "description": "设置权限为 rwxr-xr-x (所有者全部权限，其他人只读执行)",
+    "tags": [
+      "chmod",
+      "permission",
+      "权限"
+    ]
+  },
+  {
+    "command": "chown user:group file",
+    "description": "更改文件或目录的所有者和所属组",
+    "tags": [
+      "chown",
+      "owner",
+      "group",
+      "所有者"
+    ]
+  },
+  {
+    "command": "sudo command",
+    "description": "以超级用户权限执行命令",
+    "tags": [
+      "sudo",
+      "root",
+      "admin",
+      "特权"
+    ]
+  },
+  {
+    "command": "passwd",
+    "description": "修改当前用户的登录密码",
+    "tags": [
+      "passwd",
+      "password",
+      "security",
+      "密码"
+    ]
+  },
+  {
+    "command": "id user",
+    "description": "显示指定用户的 UID、GID 及所属组信息",
+    "tags": [
+      "id",
+      "user",
+      "group",
+      "身份"
+    ]
+  },
+  {
+    "command": "whoami",
+    "description": "显示当前执行命令的用户名",
+    "tags": [
+      "whoami",
+      "user",
+      "current",
+      "用户名"
+    ]
+  },
+  {
+    "command": "w",
+    "description": "显示当前登录系统的用户及其正在进行的操作",
+    "tags": [
+      "w",
+      "logged-in",
+      "activity",
+      "用户"
+    ]
+  },
+  {
+    "command": "last",
+    "description": "显示系统最近的登录记录",
+    "tags": [
+      "last",
+      "login",
+      "history",
+      "登录"
+    ]
+  },
+  {
+    "command": "uname -a",
+    "description": "显示完整的系统内核信息",
+    "tags": [
+      "uname",
+      "kernel",
+      "info",
+      "内核"
+    ]
+  },
+  {
+    "command": "hostname",
+    "description": "显示或设置系统的主机名",
+    "tags": [
+      "hostname",
+      "name",
+      "主机名"
+    ]
+  },
+  {
+    "command": "uptime",
+    "description": "查看系统开机时长及平均负载",
+    "tags": [
+      "uptime",
+      "load",
+      "status",
+      "运行时间"
+    ]
+  },
+  {
+    "command": "date",
+    "description": "显示或设置当前日期和时间",
+    "tags": [
+      "date",
+      "time",
+      "date",
+      "时间"
+    ]
+  },
+  {
+    "command": "df -T",
+    "description": "显示磁盘空间使用情况及文件系统类型",
+    "tags": [
+      "df",
+      "disk",
+      "filesystem",
+      "容量"
+    ]
+  },
+  {
+    "command": "free -h",
+    "description": "以人类可读格式显示内存使用情况",
+    "tags": [
+      "free",
+      "memory",
+      "ram",
+      "内存"
+    ]
+  },
+  {
+    "command": "lscpu",
+    "description": "查看 CPU 架构详细信息",
+    "tags": [
+      "lscpu",
+      "cpu",
+      "hardware",
+      "硬件"
+    ]
+  },
+  {
+    "command": "lsblk",
+    "description": "列出所有块设备（如硬盘、分区）的信息",
+    "tags": [
+      "lsblk",
+      "disk",
+      "block",
+      "设备"
+    ]
+  },
+  {
+    "command": "dmesg",
+    "description": "显示内核环形缓冲区的消息（常用于驱动调试）",
+    "tags": [
+      "dmesg",
+      "kernel",
+      "log",
+      "内核日志"
+    ]
+  },
+  {
+    "command": "systemctl list-units --type=service",
+    "description": "列出所有正在运行的系统服务",
+    "tags": [
+      "systemctl",
+      "service",
+      "list",
+      "服务"
+    ]
+  },
+  {
+    "command": "vmstat 1",
+    "description": "[System Monitoring] 操作指令 vmstat 1",
+    "tags": [
+      "system-monitoring",
+      "vmstat",
+      "linux"
+    ]
+  },
+  {
+    "command": "iostat -x 1",
+    "description": "[System Monitoring] 操作指令 iostat -x 1",
+    "tags": [
+      "system-monitoring",
+      "iostat",
+      "linux"
+    ]
+  },
+  {
+    "command": "mpstat -P ALL 1",
+    "description": "[System Monitoring] 操作指令 mpstat -P ALL 1",
+    "tags": [
+      "system-monitoring",
+      "mpstat",
+      "linux"
+    ]
+  },
+  {
+    "command": "sar -u 1 5",
+    "description": "[System Monitoring] 操作指令 sar -u 1 5",
+    "tags": [
+      "system-monitoring",
+      "sar",
+      "linux"
+    ]
+  },
+  {
+    "command": "free -t",
+    "description": "[System Monitoring] 操作指令 free -t",
+    "tags": [
+      "system-monitoring",
+      "free",
+      "linux"
+    ]
+  },
+  {
+    "command": "swapon -s",
+    "description": "[System Monitoring] 操作指令 swapon -s",
+    "tags": [
+      "system-monitoring",
+      "swapon",
+      "linux"
+    ]
+  },
+  {
+    "command": "numastat",
+    "description": "[System Monitoring] 操作指令 numastat",
+    "tags": [
+      "system-monitoring",
+      "numastat",
+      "linux"
+    ]
+  },
+  {
+    "command": "top -H -p PID",
+    "description": "[System Monitoring] 操作指令 top -H -p PID",
+    "tags": [
+      "system-monitoring",
+      "top",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu",
+    "description": "[System Monitoring] 操作指令 ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu",
+    "tags": [
+      "system-monitoring",
+      "ps",
+      "linux"
+    ]
+  },
+  {
+    "command": "lsof -i :80",
+    "description": "[System Monitoring] 操作指令 lsof -i :80",
+    "tags": [
+      "system-monitoring",
+      "lsof",
+      "linux"
+    ]
+  },
+  {
+    "command": "lsof -p PID",
+    "description": "[System Monitoring] 操作指令 lsof -p PID",
+    "tags": [
+      "system-monitoring",
+      "lsof",
+      "linux"
+    ]
+  },
+  {
+    "command": "strace -p PID",
+    "description": "[System Monitoring] 操作指令 strace -p PID",
+    "tags": [
+      "system-monitoring",
+      "strace",
+      "linux"
+    ]
+  },
+  {
+    "command": "gdb -p PID",
+    "description": "[System Monitoring] 操作指令 gdb -p PID",
+    "tags": [
+      "system-monitoring",
+      "gdb",
+      "linux"
+    ]
+  },
+  {
+    "command": "perf top",
+    "description": "[System Monitoring] 操作指令 perf top",
+    "tags": [
+      "system-monitoring",
+      "perf",
+      "linux"
+    ]
+  },
+  {
+    "command": "tcpdump -i eth0",
+    "description": "[System Monitoring] 操作指令 tcpdump -i eth0",
+    "tags": [
+      "system-monitoring",
+      "tcpdump",
+      "linux"
+    ]
+  },
+  {
+    "command": "nethogs eth0",
+    "description": "[System Monitoring] 操作指令 nethogs eth0",
+    "tags": [
+      "system-monitoring",
+      "nethogs",
+      "linux"
+    ]
+  },
+  {
+    "command": "iftop -i eth0",
+    "description": "[System Monitoring] 操作指令 iftop -i eth0",
+    "tags": [
+      "system-monitoring",
+      "iftop",
+      "linux"
+    ]
+  },
+  {
+    "command": "glances",
+    "description": "[System Monitoring] 操作指令 glances",
+    "tags": [
+      "system-monitoring",
+      "glances",
+      "linux"
+    ]
+  },
+  {
+    "command": "atop",
+    "description": "[System Monitoring] 操作指令 atop",
+    "tags": [
+      "system-monitoring",
+      "atop",
+      "linux"
+    ]
+  },
+  {
+    "command": "nmon",
+    "description": "[System Monitoring] 操作指令 nmon",
+    "tags": [
+      "system-monitoring",
+      "nmon",
+      "linux"
+    ]
+  },
+  {
+    "command": "pidstat",
+    "description": "[System Monitoring] 操作指令 pidstat",
+    "tags": [
+      "system-monitoring",
+      "pidstat",
+      "linux"
+    ]
+  },
+  {
+    "command": "slabtop",
+    "description": "[System Monitoring] 操作指令 slabtop",
+    "tags": [
+      "system-monitoring",
+      "slabtop",
+      "linux"
+    ]
+  },
+  {
+    "command": "watch -n 1 'ls -l'",
+    "description": "[System Monitoring] 操作指令 watch -n 1 'ls -l'",
+    "tags": [
+      "system-monitoring",
+      "watch",
+      "linux"
+    ]
+  },
+  {
+    "command": "mount /dev/sdb1 /mnt",
+    "description": "[Disk Management] 操作指令 mount /dev/sdb1 /mnt",
+    "tags": [
+      "disk-management",
+      "mount",
+      "linux"
+    ]
+  },
+  {
+    "command": "umount /mnt",
+    "description": "[Disk Management] 操作指令 umount /mnt",
+    "tags": [
+      "disk-management",
+      "umount",
+      "linux"
+    ]
+  },
+  {
+    "command": "fdisk -l",
+    "description": "[Disk Management] 操作指令 fdisk -l",
+    "tags": [
+      "disk-management",
+      "fdisk",
+      "linux"
+    ]
+  },
+  {
+    "command": "parted -l",
+    "description": "[Disk Management] 操作指令 parted -l",
+    "tags": [
+      "disk-management",
+      "parted",
+      "linux"
+    ]
+  },
+  {
+    "command": "lsblk -f",
+    "description": "[Disk Management] 操作指令 lsblk -f",
+    "tags": [
+      "disk-management",
+      "lsblk",
+      "linux"
+    ]
+  },
+  {
+    "command": "blkid",
+    "description": "[Disk Management] 操作指令 blkid",
+    "tags": [
+      "disk-management",
+      "blkid",
+      "linux"
+    ]
+  },
+  {
+    "command": "df -i",
+    "description": "[Disk Management] 操作指令 df -i",
+    "tags": [
+      "disk-management",
+      "df",
+      "linux"
+    ]
+  },
+  {
+    "command": "du -h --max-depth=1",
+    "description": "[Disk Management] 操作指令 du -h --max-depth=1",
+    "tags": [
+      "disk-management",
+      "du",
+      "linux"
+    ]
+  },
+  {
+    "command": "tune2fs -l /dev/sda1",
+    "description": "[Disk Management] 操作指令 tune2fs -l /dev/sda1",
+    "tags": [
+      "disk-management",
+      "tune2fs",
+      "linux"
+    ]
+  },
+  {
+    "command": "hdparm -I /dev/sda",
+    "description": "[Disk Management] 操作指令 hdparm -I /dev/sda",
+    "tags": [
+      "disk-management",
+      "hdparm",
+      "linux"
+    ]
+  },
+  {
+    "command": "smartctl -a /dev/sda",
+    "description": "[Disk Management] 操作指令 smartctl -a /dev/sda",
+    "tags": [
+      "disk-management",
+      "smartctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "mkfs.ext4 /dev/sdb1",
+    "description": "[Disk Management] 操作指令 mkfs.ext4 /dev/sdb1",
+    "tags": [
+      "disk-management",
+      "mkfs.ext4",
+      "linux"
+    ]
+  },
+  {
+    "command": "mkfs.xfs /dev/sdb1",
+    "description": "[Disk Management] 操作指令 mkfs.xfs /dev/sdb1",
+    "tags": [
+      "disk-management",
+      "mkfs.xfs",
+      "linux"
+    ]
+  },
+  {
+    "command": "fsck -y /dev/sdb1",
+    "description": "[Disk Management] 操作指令 fsck -y /dev/sdb1",
+    "tags": [
+      "disk-management",
+      "fsck",
+      "linux"
+    ]
+  },
+  {
+    "command": "resize2fs /dev/sda1",
+    "description": "[Disk Management] 操作指令 resize2fs /dev/sda1",
+    "tags": [
+      "disk-management",
+      "resize2fs",
+      "linux"
+    ]
+  },
+  {
+    "command": "xfs_growfs /mnt",
+    "description": "[Disk Management] 操作指令 xfs_growfs /mnt",
+    "tags": [
+      "disk-management",
+      "xfs_growfs",
+      "linux"
+    ]
+  },
+  {
+    "command": "pvdisplay",
+    "description": "[Disk Management] 操作指令 pvdisplay",
+    "tags": [
+      "disk-management",
+      "pvdisplay",
+      "linux"
+    ]
+  },
+  {
+    "command": "vgdisplay",
+    "description": "[Disk Management] 操作指令 vgdisplay",
+    "tags": [
+      "disk-management",
+      "vgdisplay",
+      "linux"
+    ]
+  },
+  {
+    "command": "lvdisplay",
+    "description": "[Disk Management] 操作指令 lvdisplay",
+    "tags": [
+      "disk-management",
+      "lvdisplay",
+      "linux"
+    ]
+  },
+  {
+    "command": "pvs",
+    "description": "[Disk Management] 操作指令 pvs",
+    "tags": [
+      "disk-management",
+      "pvs",
+      "linux"
+    ]
+  },
+  {
+    "command": "vgs",
+    "description": "[Disk Management] 操作指令 vgs",
+    "tags": [
+      "disk-management",
+      "vgs",
+      "linux"
+    ]
+  },
+  {
+    "command": "lvs",
+    "description": "[Disk Management] 操作指令 lvs",
+    "tags": [
+      "disk-management",
+      "lvs",
+      "linux"
+    ]
+  },
+  {
+    "command": "pvcreate /dev/sdb1",
+    "description": "[Disk Management] 操作指令 pvcreate /dev/sdb1",
+    "tags": [
+      "disk-management",
+      "pvcreate",
+      "linux"
+    ]
+  },
+  {
+    "command": "vgcreate vg0 /dev/sdb1",
+    "description": "[Disk Management] 操作指令 vgcreate vg0 /dev/sdb1",
+    "tags": [
+      "disk-management",
+      "vgcreate",
+      "linux"
+    ]
+  },
+  {
+    "command": "lvcreate -L 10G -n lv0 vg0",
+    "description": "[Disk Management] 操作指令 lvcreate -L 10G -n lv0 vg0",
+    "tags": [
+      "disk-management",
+      "lvcreate",
+      "linux"
+    ]
+  },
+  {
+    "command": "lvextend -L +5G /dev/vg0/lv0",
+    "description": "[Disk Management] 操作指令 lvextend -L +5G /dev/vg0/lv0",
+    "tags": [
+      "disk-management",
+      "lvextend",
+      "linux"
+    ]
+  },
+  {
+    "command": "mount -a",
+    "description": "[Disk Management] 操作指令 mount -a",
+    "tags": [
+      "disk-management",
+      "mount",
+      "linux"
+    ]
+  },
+  {
+    "command": "cat /etc/fstab",
+    "description": "[Disk Management] 操作指令 cat /etc/fstab",
+    "tags": [
+      "disk-management",
+      "cat",
+      "linux"
+    ]
+  },
+  {
+    "command": "ip addr show",
+    "description": "[Network Configuration] 操作指令 ip addr show",
+    "tags": [
+      "network-configuration",
+      "ip",
+      "linux"
+    ]
+  },
+  {
+    "command": "ip link set eth0 up",
+    "description": "[Network Configuration] 操作指令 ip link set eth0 up",
+    "tags": [
+      "network-configuration",
+      "ip",
+      "linux"
+    ]
+  },
+  {
+    "command": "ip route add default via 192.168.1.1",
+    "description": "[Network Configuration] 操作指令 ip route add default via 192.168.1.1",
+    "tags": [
+      "network-configuration",
+      "ip",
+      "linux"
+    ]
+  },
+  {
+    "command": "ip neighbor",
+    "description": "[Network Configuration] 操作指令 ip neighbor",
+    "tags": [
+      "network-configuration",
+      "ip",
+      "linux"
+    ]
+  },
+  {
+    "command": "nmcli device status",
+    "description": "[Network Configuration] 操作指令 nmcli device status",
+    "tags": [
+      "network-configuration",
+      "nmcli",
+      "linux"
+    ]
+  },
+  {
+    "command": "nmcli connection show",
+    "description": "[Network Configuration] 操作指令 nmcli connection show",
+    "tags": [
+      "network-configuration",
+      "nmcli",
+      "linux"
+    ]
+  },
+  {
+    "command": "nmtui",
+    "description": "[Network Configuration] 操作指令 nmtui",
+    "tags": [
+      "network-configuration",
+      "nmtui",
+      "linux"
+    ]
+  },
+  {
+    "command": "ethtool eth0",
+    "description": "[Network Configuration] 操作指令 ethtool eth0",
+    "tags": [
+      "network-configuration",
+      "ethtool",
+      "linux"
+    ]
+  },
+  {
+    "command": "mtr google.com",
+    "description": "[Network Configuration] 操作指令 mtr google.com",
+    "tags": [
+      "network-configuration",
+      "mtr",
+      "linux"
+    ]
+  },
+  {
+    "command": "nslookup google.com",
+    "description": "[Network Configuration] 操作指令 nslookup google.com",
+    "tags": [
+      "network-configuration",
+      "nslookup",
+      "linux"
+    ]
+  },
+  {
+    "command": "host -t A google.com",
+    "description": "[Network Configuration] 操作指令 host -t A google.com",
+    "tags": [
+      "network-configuration",
+      "host",
+      "linux"
+    ]
+  },
+  {
+    "command": "tcpdump -nnvv -i eth0 port 80",
+    "description": "[Network Configuration] 操作指令 tcpdump -nnvv -i eth0 port 80",
+    "tags": [
+      "network-configuration",
+      "tcpdump",
+      "linux"
+    ]
+  },
+  {
+    "command": "iptables -L -n -v",
+    "description": "[Network Configuration] 操作指令 iptables -L -n -v",
+    "tags": [
+      "network-configuration",
+      "iptables",
+      "linux"
+    ]
+  },
+  {
+    "command": "iptables -A INPUT -p tcp --dport 22 -j ACCEPT",
+    "description": "[Network Configuration] 操作指令 iptables -A INPUT -p tcp --dport 22 -j ACCEPT",
+    "tags": [
+      "network-configuration",
+      "iptables",
+      "linux"
+    ]
+  },
+  {
+    "command": "iptables-save",
+    "description": "[Network Configuration] 操作指令 iptables-save",
+    "tags": [
+      "network-configuration",
+      "iptables-save",
+      "linux"
+    ]
+  },
+  {
+    "command": "ufw status",
+    "description": "[Network Configuration] 操作指令 ufw status",
+    "tags": [
+      "network-configuration",
+      "ufw",
+      "linux"
+    ]
+  },
+  {
+    "command": "ufw enable",
+    "description": "[Network Configuration] 操作指令 ufw enable",
+    "tags": [
+      "network-configuration",
+      "ufw",
+      "linux"
+    ]
+  },
+  {
+    "command": "ufw allow 80/tcp",
+    "description": "[Network Configuration] 操作指令 ufw allow 80/tcp",
+    "tags": [
+      "network-configuration",
+      "ufw",
+      "linux"
+    ]
+  },
+  {
+    "command": "firewall-cmd --list-all",
+    "description": "[Network Configuration] 操作指令 firewall-cmd --list-all",
+    "tags": [
+      "network-configuration",
+      "firewall-cmd",
+      "linux"
+    ]
+  },
+  {
+    "command": "firewall-cmd --add-port=80/tcp --permanent",
+    "description": "[Network Configuration] 操作指令 firewall-cmd --add-port=80/tcp --permanent",
+    "tags": [
+      "network-configuration",
+      "firewall-cmd",
+      "linux"
+    ]
+  },
+  {
+    "command": "firewall-cmd --reload",
+    "description": "[Network Configuration] 操作指令 firewall-cmd --reload",
+    "tags": [
+      "network-configuration",
+      "firewall-cmd",
+      "linux"
+    ]
+  },
+  {
+    "command": "useradd -m newuser",
+    "description": "[User & Group] 操作指令 useradd -m newuser",
+    "tags": [
+      "user-&-group",
+      "useradd",
+      "linux"
+    ]
+  },
+  {
+    "command": "userdel -r user",
+    "description": "[User & Group] 操作指令 userdel -r user",
+    "tags": [
+      "user-&-group",
+      "userdel",
+      "linux"
+    ]
+  },
+  {
+    "command": "usermod -aG sudo user",
+    "description": "[User & Group] 操作指令 usermod -aG sudo user",
+    "tags": [
+      "user-&-group",
+      "usermod",
+      "linux"
+    ]
+  },
+  {
+    "command": "chsh -s /bin/bash user",
+    "description": "[User & Group] 操作指令 chsh -s /bin/bash user",
+    "tags": [
+      "user-&-group",
+      "chsh",
+      "linux"
+    ]
+  },
+  {
+    "command": "groupadd newgroup",
+    "description": "[User & Group] 操作指令 groupadd newgroup",
+    "tags": [
+      "user-&-group",
+      "groupadd",
+      "linux"
+    ]
+  },
+  {
+    "command": "groupdel group",
+    "description": "[User & Group] 操作指令 groupdel group",
+    "tags": [
+      "user-&-group",
+      "groupdel",
+      "linux"
+    ]
+  },
+  {
+    "command": "gpasswd -a user group",
+    "description": "[User & Group] 操作指令 gpasswd -a user group",
+    "tags": [
+      "user-&-group",
+      "gpasswd",
+      "linux"
+    ]
+  },
+  {
+    "command": "groups user",
+    "description": "[User & Group] 操作指令 groups user",
+    "tags": [
+      "user-&-group",
+      "groups",
+      "linux"
+    ]
+  },
+  {
+    "command": "id",
+    "description": "[User & Group] 操作指令 id",
+    "tags": [
+      "user-&-group",
+      "id",
+      "linux"
+    ]
+  },
+  {
+    "command": "visudo",
+    "description": "[User & Group] 操作指令 visudo",
+    "tags": [
+      "user-&-group",
+      "visudo",
+      "linux"
+    ]
+  },
+  {
+    "command": "sudo -l",
+    "description": "[User & Group] 操作指令 sudo -l",
+    "tags": [
+      "user-&-group",
+      "sudo",
+      "linux"
+    ]
+  },
+  {
+    "command": "sudo -u otheruser command",
+    "description": "[User & Group] 操作指令 sudo -u otheruser command",
+    "tags": [
+      "user-&-group",
+      "sudo",
+      "linux"
+    ]
+  },
+  {
+    "command": "chfn user",
+    "description": "[User & Group] 操作指令 chfn user",
+    "tags": [
+      "user-&-group",
+      "chfn",
+      "linux"
+    ]
+  },
+  {
+    "command": "chage -l user",
+    "description": "[User & Group] 操作指令 chage -l user",
+    "tags": [
+      "user-&-group",
+      "chage",
+      "linux"
+    ]
+  },
+  {
+    "command": "lastb",
+    "description": "[User & Group] 操作指令 lastb",
+    "tags": [
+      "user-&-group",
+      "lastb",
+      "linux"
+    ]
+  },
+  {
+    "command": "lastlog",
+    "description": "[User & Group] 操作指令 lastlog",
+    "tags": [
+      "user-&-group",
+      "lastlog",
+      "linux"
+    ]
+  },
+  {
+    "command": "faillog",
+    "description": "[User & Group] 操作指令 faillog",
+    "tags": [
+      "user-&-group",
+      "faillog",
+      "linux"
+    ]
+  },
+  {
+    "command": "bzip2 file",
+    "description": "[Compression & Formats] 操作指令 bzip2 file",
+    "tags": [
+      "compression-&-formats",
+      "bzip2",
+      "linux"
+    ]
+  },
+  {
+    "command": "bunzip2 file.bz2",
+    "description": "[Compression & Formats] 操作指令 bunzip2 file.bz2",
+    "tags": [
+      "compression-&-formats",
+      "bunzip2",
+      "linux"
+    ]
+  },
+  {
+    "command": "xz file",
+    "description": "[Compression & Formats] 操作指令 xz file",
+    "tags": [
+      "compression-&-formats",
+      "xz",
+      "linux"
+    ]
+  },
+  {
+    "command": "unxz file.xz",
+    "description": "[Compression & Formats] 操作指令 unxz file.xz",
+    "tags": [
+      "compression-&-formats",
+      "unxz",
+      "linux"
+    ]
+  },
+  {
+    "command": "lz4 file",
+    "description": "[Compression & Formats] 操作指令 lz4 file",
+    "tags": [
+      "compression-&-formats",
+      "lz4",
+      "linux"
+    ]
+  },
+  {
+    "command": "7z a archive.7z dir/",
+    "description": "[Compression & Formats] 操作指令 7z a archive.7z dir/",
+    "tags": [
+      "compression-&-formats",
+      "7z",
+      "linux"
+    ]
+  },
+  {
+    "command": "7z x archive.7z",
+    "description": "[Compression & Formats] 操作指令 7z x archive.7z",
+    "tags": [
+      "compression-&-formats",
+      "7z",
+      "linux"
+    ]
+  },
+  {
+    "command": "rar a archive.rar dir/",
+    "description": "[Compression & Formats] 操作指令 rar a archive.rar dir/",
+    "tags": [
+      "compression-&-formats",
+      "rar",
+      "linux"
+    ]
+  },
+  {
+    "command": "unrar x archive.rar",
+    "description": "[Compression & Formats] 操作指令 unrar x archive.rar",
+    "tags": [
+      "compression-&-formats",
+      "unrar",
+      "linux"
+    ]
+  },
+  {
+    "command": "cpio -idmv < archive.cpio",
+    "description": "[Compression & Formats] 操作指令 cpio -idmv < archive.cpio",
+    "tags": [
+      "compression-&-formats",
+      "cpio",
+      "linux"
+    ]
+  },
+  {
+    "command": "zcat file.gz",
+    "description": "[Compression & Formats] 操作指令 zcat file.gz",
+    "tags": [
+      "compression-&-formats",
+      "zcat",
+      "linux"
+    ]
+  },
+  {
+    "command": "zgrep \"pattern\" file.gz",
+    "description": "[Compression & Formats] 操作指令 zgrep \"pattern\" file.gz",
+    "tags": [
+      "compression-&-formats",
+      "zgrep",
+      "linux"
+    ]
+  },
+  {
+    "command": "bzcat file.bz2",
+    "description": "[Compression & Formats] 操作指令 bzcat file.bz2",
+    "tags": [
+      "compression-&-formats",
+      "bzcat",
+      "linux"
+    ]
+  },
+  {
+    "command": "gcc main.c -o app",
+    "description": "[Development & Compilation] 操作指令 gcc main.c -o app",
+    "tags": [
+      "development-&-compilation",
+      "gcc",
+      "linux"
+    ]
+  },
+  {
+    "command": "g++ main.cpp -o app",
+    "description": "[Development & Compilation] 操作指令 g++ main.cpp -o app",
+    "tags": [
+      "development-&-compilation",
+      "g++",
+      "linux"
+    ]
+  },
+  {
+    "command": "make",
+    "description": "[Development & Compilation] 操作指令 make",
+    "tags": [
+      "development-&-compilation",
+      "make",
+      "linux"
+    ]
+  },
+  {
+    "command": "make install",
+    "description": "[Development & Compilation] 操作指令 make install",
+    "tags": [
+      "development-&-compilation",
+      "make",
+      "linux"
+    ]
+  },
+  {
+    "command": "cmake .",
+    "description": "[Development & Compilation] 操作指令 cmake .",
+    "tags": [
+      "development-&-compilation",
+      "cmake",
+      "linux"
+    ]
+  },
+  {
+    "command": "ldd /usr/bin/ls",
+    "description": "[Development & Compilation] 操作指令 ldd /usr/bin/ls",
+    "tags": [
+      "development-&-compilation",
+      "ldd",
+      "linux"
+    ]
+  },
+  {
+    "command": "nm lib.a",
+    "description": "[Development & Compilation] 操作指令 nm lib.a",
+    "tags": [
+      "development-&-compilation",
+      "nm",
+      "linux"
+    ]
+  },
+  {
+    "command": "objdump -d app",
+    "description": "[Development & Compilation] 操作指令 objdump -d app",
+    "tags": [
+      "development-&-compilation",
+      "objdump",
+      "linux"
+    ]
+  },
+  {
+    "command": "readelf -h app",
+    "description": "[Development & Compilation] 操作指令 readelf -h app",
+    "tags": [
+      "development-&-compilation",
+      "readelf",
+      "linux"
+    ]
+  },
+  {
+    "command": "strip app",
+    "description": "[Development & Compilation] 操作指令 strip app",
+    "tags": [
+      "development-&-compilation",
+      "strip",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl start name",
+    "description": "[System Services] 操作指令 systemctl start name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl stop name",
+    "description": "[System Services] 操作指令 systemctl stop name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl restart name",
+    "description": "[System Services] 操作指令 systemctl restart name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl reload name",
+    "description": "[System Services] 操作指令 systemctl reload name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl enable name",
+    "description": "[System Services] 操作指令 systemctl enable name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl disable name",
+    "description": "[System Services] 操作指令 systemctl disable name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl mask name",
+    "description": "[System Services] 操作指令 systemctl mask name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl unmask name",
+    "description": "[System Services] 操作指令 systemctl unmask name",
+    "tags": [
+      "system-services",
+      "systemctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "journalctl -xe",
+    "description": "[System Services] 操作指令 journalctl -xe",
+    "tags": [
+      "system-services",
+      "journalctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "journalctl -u service_name",
+    "description": "[System Services] 操作指令 journalctl -u service_name",
+    "tags": [
+      "system-services",
+      "journalctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "journalctl --since \"1 hour ago\"",
+    "description": "[System Services] 操作指令 journalctl --since \"1 hour ago\"",
+    "tags": [
+      "system-services",
+      "journalctl",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -la",
+    "description": "ls 工具的常用常用参数组合或操作: -la",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lh",
+    "description": "ls 工具的常用常用参数组合或操作: -lh",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lS",
+    "description": "ls 工具的常用常用参数组合或操作: -lS",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lt",
+    "description": "ls 工具的常用常用参数组合或操作: -lt",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lu",
+    "description": "ls 工具的常用常用参数组合或操作: -lu",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -li",
+    "description": "ls 工具的常用常用参数组合或操作: -li",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lk",
+    "description": "ls 工具的常用常用参数组合或操作: -lk",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lm",
+    "description": "ls 工具的常用常用参数组合或操作: -lm",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -ln",
+    "description": "ls 工具的常用常用参数组合或操作: -ln",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lp",
+    "description": "ls 工具的常用常用参数组合或操作: -lp",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lQ",
+    "description": "ls 工具的常用常用参数组合或操作: -lQ",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lr",
+    "description": "ls 工具的常用常用参数组合或操作: -lr",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -lx",
+    "description": "ls 工具的常用常用参数组合或操作: -lx",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -1",
+    "description": "ls 工具的常用常用参数组合或操作: -1",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -F",
+    "description": "ls 工具的常用常用参数组合或操作: -F",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -m",
+    "description": "ls 工具的常用常用参数组合或操作: -m",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -n",
+    "description": "ls 工具的常用常用参数组合或操作: -n",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls -s",
+    "description": "ls 工具的常用常用参数组合或操作: -s",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ls --color",
+    "description": "ls 工具的常用常用参数组合或操作: --color",
+    "tags": [
+      "ls",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps aux",
+    "description": "ps 工具的常用常用参数组合或操作: aux",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps -ef",
+    "description": "ps 工具的常用常用参数组合或操作: -ef",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps axms",
+    "description": "ps 工具的常用常用参数组合或操作: axms",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps axjf",
+    "description": "ps 工具的常用常用参数组合或操作: axjf",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps -eLo pid,ppid,tid,class,rtprio,ni,pri,psr,pcpu,stat,wchan:14,comm",
+    "description": "ps 工具的常用常用参数组合或操作: -eLo pid,ppid,tid,class,rtprio,ni,pri,psr,pcpu,stat,wchan:14,comm",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps L",
+    "description": "ps 工具的常用常用参数组合或操作: L",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps T",
+    "description": "ps 工具的常用常用参数组合或操作: T",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps r",
+    "description": "ps 工具的常用常用参数组合或操作: r",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps U user",
+    "description": "ps 工具的常用常用参数组合或操作: U user",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "ps G group",
+    "description": "ps 工具的常用常用参数组合或操作: G group",
+    "tags": [
+      "ps",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -tvf",
+    "description": "tar 工具的常用常用参数组合或操作: -tvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -rvf",
+    "description": "tar 工具的常用常用参数组合或操作: -rvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -uvf",
+    "description": "tar 工具的常用常用参数组合或操作: -uvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -cvf",
+    "description": "tar 工具的常用常用参数组合或操作: -cvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -xvf",
+    "description": "tar 工具的常用常用参数组合或操作: -xvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -zcvf",
+    "description": "tar 工具的常用常用参数组合或操作: -zcvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -zxvf",
+    "description": "tar 工具的常用常用参数组合或操作: -zxvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -jcvf",
+    "description": "tar 工具的常用常用参数组合或操作: -jcvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -jxvf",
+    "description": "tar 工具的常用常用参数组合或操作: -jxvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -Jcvf",
+    "description": "tar 工具的常用常用参数组合或操作: -Jcvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "tar -Jxvf",
+    "description": "tar 工具的常用常用参数组合或操作: -Jxvf",
+    "tags": [
+      "tar",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -lp",
+    "description": "netstat 工具的常用常用参数组合或操作: -lp",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -rn",
+    "description": "netstat 工具的常用常用参数组合或操作: -rn",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -i",
+    "description": "netstat 工具的常用常用参数组合或操作: -i",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -s",
+    "description": "netstat 工具的常用常用参数组合或操作: -s",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -M",
+    "description": "netstat 工具的常用常用参数组合或操作: -M",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -t",
+    "description": "netstat 工具的常用常用参数组合或操作: -t",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -u",
+    "description": "netstat 工具的常用常用参数组合或操作: -u",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -x",
+    "description": "netstat 工具的常用常用参数组合或操作: -x",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -p",
+    "description": "netstat 工具的常用常用参数组合或操作: -p",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "netstat -a",
+    "description": "netstat 工具的常用常用参数组合或操作: -a",
+    "tags": [
+      "netstat",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -empty",
+    "description": "find 工具的常用常用参数组合或操作: . -empty",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -executable",
+    "description": "find 工具的常用常用参数组合或操作: . -executable",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -readable",
+    "description": "find 工具的常用常用参数组合或操作: . -readable",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -writable",
+    "description": "find 工具的常用常用参数组合或操作: . -writable",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -user root",
+    "description": "find 工具的常用常用参数组合或操作: . -user root",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -group admin",
+    "description": "find 工具的常用常用参数组合或操作: . -group admin",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -name '*.py'",
+    "description": "find 工具的常用常用参数组合或操作: . -name '*.py'",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -mmin -5",
+    "description": "find 工具的常用常用参数组合或操作: . -mmin -5",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -atime -2",
+    "description": "find 工具的常用常用参数组合或操作: . -atime -2",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -size +1G",
+    "description": "find 工具的常用常用参数组合或操作: . -size +1G",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "find . -perm 777",
+    "description": "find 工具的常用常用参数组合或操作: . -perm 777",
+    "tags": [
+      "find",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod u+x",
+    "description": "chmod 工具的常用常用参数组合或操作: u+x",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod g-w",
+    "description": "chmod 工具的常用常用参数组合或操作: g-w",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod o=r",
+    "description": "chmod 工具的常用常用参数组合或操作: o=r",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod a+rwx",
+    "description": "chmod 工具的常用常用参数组合或操作: a+rwx",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod 777",
+    "description": "chmod 工具的常用常用参数组合或操作: 777",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod 644",
+    "description": "chmod 工具的常用常用参数组合或操作: 644",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod 600",
+    "description": "chmod 工具的常用常用参数组合或操作: 600",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod 400",
+    "description": "chmod 工具的常用常用参数组合或操作: 400",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod 700",
+    "description": "chmod 工具的常用常用参数组合或操作: 700",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod 755",
+    "description": "chmod 工具的常用常用参数组合或操作: 755",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod +x",
+    "description": "chmod 工具的常用常用参数组合或操作: +x",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chmod -w",
+    "description": "chmod 工具的常用常用参数组合或操作: -w",
+    "tags": [
+      "chmod",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chown root:root",
+    "description": "chown 工具的常用常用参数组合或操作: root:root",
+    "tags": [
+      "chown",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chown www-data:www-data",
+    "description": "chown 工具的常用常用参数组合或操作: www-data:www-data",
+    "tags": [
+      "chown",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chown :groupname",
+    "description": "chown 工具的常用常用参数组合或操作: :groupname",
+    "tags": [
+      "chown",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chown user:",
+    "description": "chown 工具的常用常用参数组合或操作: user:",
+    "tags": [
+      "chown",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "chown -R user:group",
+    "description": "chown 工具的常用常用参数组合或操作: -R user:group",
+    "tags": [
+      "chown",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git status",
+    "description": "git 工具的常用常用参数组合或操作: status",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git add .",
+    "description": "git 工具的常用常用参数组合或操作: add .",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git commit -m 'msg'",
+    "description": "git 工具的常用常用参数组合或操作: commit -m 'msg'",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git push origin master",
+    "description": "git 工具的常用常用参数组合或操作: push origin master",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git pull",
+    "description": "git 工具的常用常用参数组合或操作: pull",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git log --oneline",
+    "description": "git 工具的常用常用参数组合或操作: log --oneline",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git branch",
+    "description": "git 工具的常用常用参数组合或操作: branch",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git checkout -b new",
+    "description": "git 工具的常用常用参数组合或操作: checkout -b new",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git merge",
+    "description": "git 工具的常用常用参数组合或操作: merge",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git diff",
+    "description": "git 工具的常用常用参数组合或操作: diff",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git clone",
+    "description": "git 工具的常用常用参数组合或操作: clone",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git fetch",
+    "description": "git 工具的常用常用参数组合或操作: fetch",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git reset --hard",
+    "description": "git 工具的常用常用参数组合或操作: reset --hard",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git stash",
+    "description": "git 工具的常用常用参数组合或操作: stash",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git rebase",
+    "description": "git 工具的常用常用参数组合或操作: rebase",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git tag",
+    "description": "git 工具的常用常用参数组合或操作: tag",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git remote -v",
+    "description": "git 工具的常用常用参数组合或操作: remote -v",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "git config --list",
+    "description": "git 工具的常用常用参数组合或操作: config --list",
+    "tags": [
+      "git",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker images",
+    "description": "docker 工具的常用常用参数组合或操作: images",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker ps",
+    "description": "docker 工具的常用常用参数组合或操作: ps",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker run -it alpine",
+    "description": "docker 工具的常用常用参数组合或操作: run -it alpine",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker stop container_id",
+    "description": "docker 工具的常用常用参数组合或操作: stop container_id",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker rm container_id",
+    "description": "docker 工具的常用常用参数组合或操作: rm container_id",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker rmi image_id",
+    "description": "docker 工具的常用常用参数组合或操作: rmi image_id",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker logs -f container_id",
+    "description": "docker 工具的常用常用参数组合或操作: logs -f container_id",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker exec -it container_id /bin/sh",
+    "description": "docker 工具的常用常用参数组合或操作: exec -it container_id /bin/sh",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker build -t tags .",
+    "description": "docker 工具的常用常用参数组合或操作: build -t tags .",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker network ls",
+    "description": "docker 工具的常用常用参数组合或操作: network ls",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker volume ls",
+    "description": "docker 工具的常用常用参数组合或操作: volume ls",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker inspect container",
+    "description": "docker 工具的常用常用参数组合或操作: inspect container",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker stats",
+    "description": "docker 工具的常用常用参数组合或操作: stats",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker top container",
+    "description": "docker 工具的常用常用参数组合或操作: top container",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "docker prune -a",
+    "description": "docker 工具的常用常用参数组合或操作: prune -a",
+    "tags": [
+      "docker",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt list --installed",
+    "description": "apt 工具的常用常用参数组合或操作: list --installed",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt autoremove",
+    "description": "apt 工具的常用常用参数组合或操作: autoremove",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt clean",
+    "description": "apt 工具的常用常用参数组合或操作: clean",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt show package",
+    "description": "apt 工具的常用常用参数组合或操作: show package",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt search pattern",
+    "description": "apt 工具的常用常用参数组合或操作: search pattern",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt update",
+    "description": "apt 工具的常用常用参数组合或操作: update",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt upgrade",
+    "description": "apt 工具的常用常用参数组合或操作: upgrade",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt dist-upgrade",
+    "description": "apt 工具的常用常用参数组合或操作: dist-upgrade",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt full-upgrade",
+    "description": "apt 工具的常用常用参数组合或操作: full-upgrade",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt policy package",
+    "description": "apt 工具的常用常用参数组合或操作: policy package",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "apt depends package",
+    "description": "apt 工具的常用常用参数组合或操作: depends package",
+    "tags": [
+      "apt",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum list installed",
+    "description": "yum 工具的常用常用参数组合或操作: list installed",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum clean all",
+    "description": "yum 工具的常用常用参数组合或操作: clean all",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum repolist",
+    "description": "yum 工具的常用常用参数组合或操作: repolist",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum search pattern",
+    "description": "yum 工具的常用常用参数组合或操作: search pattern",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum update",
+    "description": "yum 工具的常用常用参数组合或操作: update",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum check-update",
+    "description": "yum 工具的常用常用参数组合或操作: check-update",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum info package",
+    "description": "yum 工具的常用常用参数组合或操作: info package",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum provides feature",
+    "description": "yum 工具的常用常用参数组合或操作: provides feature",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "yum history",
+    "description": "yum 工具的常用常用参数组合或操作: history",
+    "tags": [
+      "yum",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl daemon-reload",
+    "description": "systemctl 工具的常用常用参数组合或操作: daemon-reload",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl is-active",
+    "description": "systemctl 工具的常用常用参数组合或操作: is-active",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl is-enabled",
+    "description": "systemctl 工具的常用常用参数组合或操作: is-enabled",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl set-default multi-user.target",
+    "description": "systemctl 工具的常用常用参数组合或操作: set-default multi-user.target",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl list-units",
+    "description": "systemctl 工具的常用常用参数组合或操作: list-units",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl list-unit-files",
+    "description": "systemctl 工具的常用常用参数组合或操作: list-unit-files",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl mask",
+    "description": "systemctl 工具的常用常用参数组合或操作: mask",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl unmask",
+    "description": "systemctl 工具的常用常用参数组合或操作: unmask",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "systemctl show service",
+    "description": "systemctl 工具的常用常用参数组合或操作: show service",
+    "tags": [
+      "systemctl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim :q!",
+    "description": "vim 工具的常用常用参数组合或操作: :q!",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim :wq",
+    "description": "vim 工具的常用常用参数组合或操作: :wq",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim :set nu",
+    "description": "vim 工具的常用常用参数组合或操作: :set nu",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim :set nonu",
+    "description": "vim 工具的常用常用参数组合或操作: :set nonu",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim :syntax on",
+    "description": "vim 工具的常用常用参数组合或操作: :syntax on",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim :syntax off",
+    "description": "vim 工具的常用常用参数组合或操作: :syntax off",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim dd",
+    "description": "vim 工具的常用常用参数组合或操作: dd",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim yy",
+    "description": "vim 工具的常用常用参数组合或操作: yy",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim p",
+    "description": "vim 工具的常用常用参数组合或操作: p",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim u",
+    "description": "vim 工具的常用常用参数组合或操作: u",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim Ctrl+r",
+    "description": "vim 工具的常用常用参数组合或操作: Ctrl+r",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim /",
+    "description": "vim 工具的常用常用参数组合或操作: /",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim n",
+    "description": "vim 工具的常用常用参数组合或操作: n",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim N",
+    "description": "vim 工具的常用常用参数组合或操作: N",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim gg",
+    "description": "vim 工具的常用常用参数组合或操作: gg",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim G",
+    "description": "vim 工具的常用常用参数组合或操作: G",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim 0",
+    "description": "vim 工具的常用常用参数组合或操作: 0",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim $",
+    "description": "vim 工具的常用常用参数组合或操作: $",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim i",
+    "description": "vim 工具的常用常用参数组合或操作: i",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim a",
+    "description": "vim 工具的常用常用参数组合或操作: a",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim o",
+    "description": "vim 工具的常用常用参数组合或操作: o",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim v",
+    "description": "vim 工具的常用常用参数组合或操作: v",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim V",
+    "description": "vim 工具的常用常用参数组合或操作: V",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "vim y$",
+    "description": "vim 工具的常用常用参数组合或操作: y$",
+    "tags": [
+      "vim",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl get pods",
+    "description": "kubectl 工具的常用常用参数组合或操作: get pods",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl describe pod",
+    "description": "kubectl 工具的常用常用参数组合或操作: describe pod",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl logs -f",
+    "description": "kubectl 工具的常用常用参数组合或操作: logs -f",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl apply -f file.yaml",
+    "description": "kubectl 工具的常用常用参数组合或操作: apply -f file.yaml",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl delete pod",
+    "description": "kubectl 工具的常用常用参数组合或操作: delete pod",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl get svc",
+    "description": "kubectl 工具的常用常用参数组合或操作: get svc",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl get ingress",
+    "description": "kubectl 工具的常用常用参数组合或操作: get ingress",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl get nodes",
+    "description": "kubectl 工具的常用常用参数组合或操作: get nodes",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl top pod",
+    "description": "kubectl 工具的常用常用参数组合或操作: top pod",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl top node",
+    "description": "kubectl 工具的常用常用参数组合或操作: top node",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl exec -it pod -- /bin/sh",
+    "description": "kubectl 工具的常用常用参数组合或操作: exec -it pod -- /bin/sh",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl port-forward pod 8080:80",
+    "description": "kubectl 工具的常用常用参数组合或操作: port-forward pod 8080:80",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "kubectl get namespaces",
+    "description": "kubectl 工具的常用常用参数组合或操作: get namespaces",
+    "tags": [
+      "kubectl",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm install",
+    "description": "npm 工具的常用常用参数组合或操作: install",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm run dev",
+    "description": "npm 工具的常用常用参数组合或操作: run dev",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm build",
+    "description": "npm 工具的常用常用参数组合或操作: build",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm test",
+    "description": "npm 工具的常用常用参数组合或操作: test",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm init -y",
+    "description": "npm 工具的常用常用参数组合或操作: init -y",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm list -g",
+    "description": "npm 工具的常用常用参数组合或操作: list -g",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm uninstall",
+    "description": "npm 工具的常用常用参数组合或操作: uninstall",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm update",
+    "description": "npm 工具的常用常用参数组合或操作: update",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm search",
+    "description": "npm 工具的常用常用参数组合或操作: search",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "npm config get registry",
+    "description": "npm 工具的常用常用参数组合或操作: config get registry",
+    "tags": [
+      "npm",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "pip install package",
+    "description": "pip 工具的常用常用参数组合或操作: install package",
+    "tags": [
+      "pip",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "pip list",
+    "description": "pip 工具的常用常用参数组合或操作: list",
+    "tags": [
+      "pip",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "pip freeze > req.txt",
+    "description": "pip 工具的常用常用参数组合或操作: freeze > req.txt",
+    "tags": [
+      "pip",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "pip show package",
+    "description": "pip 工具的常用常用参数组合或操作: show package",
+    "tags": [
+      "pip",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "pip search pattern",
+    "description": "pip 工具的常用常用参数组合或操作: search pattern",
+    "tags": [
+      "pip",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "pip uninstall package",
+    "description": "pip 工具的常用常用参数组合或操作: uninstall package",
+    "tags": [
+      "pip",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "pip check",
+    "description": "pip 工具的常用常用参数组合或操作: check",
+    "tags": [
+      "pip",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo build",
+    "description": "cargo 工具的常用常用参数组合或操作: build",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo run",
+    "description": "cargo 工具的常用常用参数组合或操作: run",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo check",
+    "description": "cargo 工具的常用常用参数组合或操作: check",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo test",
+    "description": "cargo 工具的常用常用参数组合或操作: test",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo doc",
+    "description": "cargo 工具的常用常用参数组合或操作: doc",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo publish",
+    "description": "cargo 工具的常用常用参数组合或操作: publish",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo update",
+    "description": "cargo 工具的常用常用参数组合或操作: update",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo clean",
+    "description": "cargo 工具的常用常用参数组合或操作: clean",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "cargo init",
+    "description": "cargo 工具的常用常用参数组合或操作: init",
+    "tags": [
+      "cargo",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go build",
+    "description": "go 工具的常用常用参数组合或操作: build",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go run",
+    "description": "go 工具的常用常用参数组合或操作: run",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go test",
+    "description": "go 工具的常用常用参数组合或操作: test",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go get",
+    "description": "go 工具的常用常用参数组合或操作: get",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go mod init",
+    "description": "go 工具的常用常用参数组合或操作: mod init",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go mod tidy",
+    "description": "go 工具的常用常用参数组合或操作: mod tidy",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go install",
+    "description": "go 工具的常用常用参数组合或操作: install",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go fmt",
+    "description": "go 工具的常用常用参数组合或操作: fmt",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "go vet",
+    "description": "go 工具的常用常用参数组合或操作: vet",
+    "tags": [
+      "go",
+      "tool-usage",
+      "linux"
+    ]
+  },
+  {
+    "command": "glances",
+    "description": "全面的系统性能监控工具（基于 Python）",
+    "tags": [
+      "monitor",
+      "system",
+      "performance"
+    ]
+  },
+  {
+    "command": "sensors",
+    "description": "查看主板、CPU 温度及风扇转速",
+    "tags": [
+      "hardware",
+      "temperature"
+    ]
+  },
+  {
+    "command": "!!",
+    "description": "重新执行上一条命令",
+    "tags": [
+      "bash",
+      "shortcut"
+    ]
+  },
+  {
+    "command": "!$",
+    "description": "引用上一条命令的最后一个参数",
+    "tags": [
+      "bash",
+      "shortcut"
+    ]
+  },
+  {
+    "command": "history -c",
+    "description": "清空历史记录",
+    "tags": [
+      "bash",
+      "history"
+    ]
+  },
+  {
+    "command": "helm list",
+    "description": "DevOps 相关工具指令: helm list",
+    "tags": [
+      "devops",
+      "helm",
+      "linux"
+    ]
+  },
+  {
+    "command": "helm install",
+    "description": "DevOps 相关工具指令: helm install",
+    "tags": [
+      "devops",
+      "helm",
+      "linux"
+    ]
+  },
+  {
+    "command": "helm upgrade",
+    "description": "DevOps 相关工具指令: helm upgrade",
+    "tags": [
+      "devops",
+      "helm",
+      "linux"
+    ]
+  },
+  {
+    "command": "helm rollback",
+    "description": "DevOps 相关工具指令: helm rollback",
+    "tags": [
+      "devops",
+      "helm",
+      "linux"
+    ]
+  },
+  {
+    "command": "terraform init",
+    "description": "DevOps 相关工具指令: terraform init",
+    "tags": [
+      "devops",
+      "terraform",
+      "linux"
+    ]
+  },
+  {
+    "command": "terraform plan",
+    "description": "DevOps 相关工具指令: terraform plan",
+    "tags": [
+      "devops",
+      "terraform",
+      "linux"
+    ]
+  },
+  {
+    "command": "terraform apply",
+    "description": "DevOps 相关工具指令: terraform apply",
+    "tags": [
+      "devops",
+      "terraform",
+      "linux"
+    ]
+  },
+  {
+    "command": "terraform destroy",
+    "description": "DevOps 相关工具指令: terraform destroy",
+    "tags": [
+      "devops",
+      "terraform",
+      "linux"
+    ]
+  },
+  {
+    "command": "ansible all -m ping",
+    "description": "DevOps 相关工具指令: ansible all -m ping",
+    "tags": [
+      "devops",
+      "ansible",
+      "linux"
+    ]
+  },
+  {
+    "command": "ansible-playbook site.yml",
+    "description": "DevOps 相关工具指令: ansible-playbook site.yml",
+    "tags": [
+      "devops",
+      "ansible-playbook",
+      "linux"
+    ]
+  },
+  {
+    "command": "vagrant up",
+    "description": "DevOps 相关工具指令: vagrant up",
+    "tags": [
+      "devops",
+      "vagrant",
+      "linux"
+    ]
+  },
+  {
+    "command": "vagrant ssh",
+    "description": "DevOps 相关工具指令: vagrant ssh",
+    "tags": [
+      "devops",
+      "vagrant",
+      "linux"
+    ]
+  },
+  {
+    "command": "vagrant halt",
+    "description": "DevOps 相关工具指令: vagrant halt",
+    "tags": [
+      "devops",
+      "vagrant",
+      "linux"
+    ]
+  },
+  {
+    "command": "ssh user@node402.example.com",
+    "description": "连接到服务器集群中的节点 402",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node403.example.com",
+    "description": "连接到服务器集群中的节点 403",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node404.example.com",
+    "description": "连接到服务器集群中的节点 404",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node405.example.com",
+    "description": "连接到服务器集群中的节点 405",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node406.example.com",
+    "description": "连接到服务器集群中的节点 406",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node407.example.com",
+    "description": "连接到服务器集群中的节点 407",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node408.example.com",
+    "description": "连接到服务器集群中的节点 408",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node409.example.com",
+    "description": "连接到服务器集群中的节点 409",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node410.example.com",
+    "description": "连接到服务器集群中的节点 410",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node411.example.com",
+    "description": "连接到服务器集群中的节点 411",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node412.example.com",
+    "description": "连接到服务器集群中的节点 412",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node413.example.com",
+    "description": "连接到服务器集群中的节点 413",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node414.example.com",
+    "description": "连接到服务器集群中的节点 414",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node415.example.com",
+    "description": "连接到服务器集群中的节点 415",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node416.example.com",
+    "description": "连接到服务器集群中的节点 416",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node417.example.com",
+    "description": "连接到服务器集群中的节点 417",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node418.example.com",
+    "description": "连接到服务器集群中的节点 418",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node419.example.com",
+    "description": "连接到服务器集群中的节点 419",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node420.example.com",
+    "description": "连接到服务器集群中的节点 420",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node421.example.com",
+    "description": "连接到服务器集群中的节点 421",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node422.example.com",
+    "description": "连接到服务器集群中的节点 422",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node423.example.com",
+    "description": "连接到服务器集群中的节点 423",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node424.example.com",
+    "description": "连接到服务器集群中的节点 424",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node425.example.com",
+    "description": "连接到服务器集群中的节点 425",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node426.example.com",
+    "description": "连接到服务器集群中的节点 426",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node427.example.com",
+    "description": "连接到服务器集群中的节点 427",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node428.example.com",
+    "description": "连接到服务器集群中的节点 428",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node429.example.com",
+    "description": "连接到服务器集群中的节点 429",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node430.example.com",
+    "description": "连接到服务器集群中的节点 430",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node431.example.com",
+    "description": "连接到服务器集群中的节点 431",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node432.example.com",
+    "description": "连接到服务器集群中的节点 432",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node433.example.com",
+    "description": "连接到服务器集群中的节点 433",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node434.example.com",
+    "description": "连接到服务器集群中的节点 434",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node435.example.com",
+    "description": "连接到服务器集群中的节点 435",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node436.example.com",
+    "description": "连接到服务器集群中的节点 436",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node437.example.com",
+    "description": "连接到服务器集群中的节点 437",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node438.example.com",
+    "description": "连接到服务器集群中的节点 438",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node439.example.com",
+    "description": "连接到服务器集群中的节点 439",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node440.example.com",
+    "description": "连接到服务器集群中的节点 440",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node441.example.com",
+    "description": "连接到服务器集群中的节点 441",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node442.example.com",
+    "description": "连接到服务器集群中的节点 442",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node443.example.com",
+    "description": "连接到服务器集群中的节点 443",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node444.example.com",
+    "description": "连接到服务器集群中的节点 444",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node445.example.com",
+    "description": "连接到服务器集群中的节点 445",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node446.example.com",
+    "description": "连接到服务器集群中的节点 446",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node447.example.com",
+    "description": "连接到服务器集群中的节点 447",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node448.example.com",
+    "description": "连接到服务器集群中的节点 448",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node449.example.com",
+    "description": "连接到服务器集群中的节点 449",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node450.example.com",
+    "description": "连接到服务器集群中的节点 450",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node451.example.com",
+    "description": "连接到服务器集群中的节点 451",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node452.example.com",
+    "description": "连接到服务器集群中的节点 452",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node453.example.com",
+    "description": "连接到服务器集群中的节点 453",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node454.example.com",
+    "description": "连接到服务器集群中的节点 454",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node455.example.com",
+    "description": "连接到服务器集群中的节点 455",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node456.example.com",
+    "description": "连接到服务器集群中的节点 456",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node457.example.com",
+    "description": "连接到服务器集群中的节点 457",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node458.example.com",
+    "description": "连接到服务器集群中的节点 458",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node459.example.com",
+    "description": "连接到服务器集群中的节点 459",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node460.example.com",
+    "description": "连接到服务器集群中的节点 460",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node461.example.com",
+    "description": "连接到服务器集群中的节点 461",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node462.example.com",
+    "description": "连接到服务器集群中的节点 462",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node463.example.com",
+    "description": "连接到服务器集群中的节点 463",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node464.example.com",
+    "description": "连接到服务器集群中的节点 464",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node465.example.com",
+    "description": "连接到服务器集群中的节点 465",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node466.example.com",
+    "description": "连接到服务器集群中的节点 466",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node467.example.com",
+    "description": "连接到服务器集群中的节点 467",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node468.example.com",
+    "description": "连接到服务器集群中的节点 468",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node469.example.com",
+    "description": "连接到服务器集群中的节点 469",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node470.example.com",
+    "description": "连接到服务器集群中的节点 470",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node471.example.com",
+    "description": "连接到服务器集群中的节点 471",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node472.example.com",
+    "description": "连接到服务器集群中的节点 472",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node473.example.com",
+    "description": "连接到服务器集群中的节点 473",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node474.example.com",
+    "description": "连接到服务器集群中的节点 474",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node475.example.com",
+    "description": "连接到服务器集群中的节点 475",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node476.example.com",
+    "description": "连接到服务器集群中的节点 476",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node477.example.com",
+    "description": "连接到服务器集群中的节点 477",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node478.example.com",
+    "description": "连接到服务器集群中的节点 478",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node479.example.com",
+    "description": "连接到服务器集群中的节点 479",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node480.example.com",
+    "description": "连接到服务器集群中的节点 480",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node481.example.com",
+    "description": "连接到服务器集群中的节点 481",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node482.example.com",
+    "description": "连接到服务器集群中的节点 482",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node483.example.com",
+    "description": "连接到服务器集群中的节点 483",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node484.example.com",
+    "description": "连接到服务器集群中的节点 484",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node485.example.com",
+    "description": "连接到服务器集群中的节点 485",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node486.example.com",
+    "description": "连接到服务器集群中的节点 486",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node487.example.com",
+    "description": "连接到服务器集群中的节点 487",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node488.example.com",
+    "description": "连接到服务器集群中的节点 488",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node489.example.com",
+    "description": "连接到服务器集群中的节点 489",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node490.example.com",
+    "description": "连接到服务器集群中的节点 490",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node491.example.com",
+    "description": "连接到服务器集群中的节点 491",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node492.example.com",
+    "description": "连接到服务器集群中的节点 492",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node493.example.com",
+    "description": "连接到服务器集群中的节点 493",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node494.example.com",
+    "description": "连接到服务器集群中的节点 494",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node495.example.com",
+    "description": "连接到服务器集群中的节点 495",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node496.example.com",
+    "description": "连接到服务器集群中的节点 496",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node497.example.com",
+    "description": "连接到服务器集群中的节点 497",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node498.example.com",
+    "description": "连接到服务器集群中的节点 498",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node499.example.com",
+    "description": "连接到服务器集群中的节点 499",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node500.example.com",
+    "description": "连接到服务器集群中的节点 500",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node501.example.com",
+    "description": "连接到服务器集群中的节点 501",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node502.example.com",
+    "description": "连接到服务器集群中的节点 502",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node503.example.com",
+    "description": "连接到服务器集群中的节点 503",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node504.example.com",
+    "description": "连接到服务器集群中的节点 504",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node505.example.com",
+    "description": "连接到服务器集群中的节点 505",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node506.example.com",
+    "description": "连接到服务器集群中的节点 506",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node507.example.com",
+    "description": "连接到服务器集群中的节点 507",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node508.example.com",
+    "description": "连接到服务器集群中的节点 508",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node509.example.com",
+    "description": "连接到服务器集群中的节点 509",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node510.example.com",
+    "description": "连接到服务器集群中的节点 510",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node511.example.com",
+    "description": "连接到服务器集群中的节点 511",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node512.example.com",
+    "description": "连接到服务器集群中的节点 512",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node513.example.com",
+    "description": "连接到服务器集群中的节点 513",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node514.example.com",
+    "description": "连接到服务器集群中的节点 514",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node515.example.com",
+    "description": "连接到服务器集群中的节点 515",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node516.example.com",
+    "description": "连接到服务器集群中的节点 516",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node517.example.com",
+    "description": "连接到服务器集群中的节点 517",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node518.example.com",
+    "description": "连接到服务器集群中的节点 518",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node519.example.com",
+    "description": "连接到服务器集群中的节点 519",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node520.example.com",
+    "description": "连接到服务器集群中的节点 520",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node521.example.com",
+    "description": "连接到服务器集群中的节点 521",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node522.example.com",
+    "description": "连接到服务器集群中的节点 522",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node523.example.com",
+    "description": "连接到服务器集群中的节点 523",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node524.example.com",
+    "description": "连接到服务器集群中的节点 524",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node525.example.com",
+    "description": "连接到服务器集群中的节点 525",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node526.example.com",
+    "description": "连接到服务器集群中的节点 526",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node527.example.com",
+    "description": "连接到服务器集群中的节点 527",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node528.example.com",
+    "description": "连接到服务器集群中的节点 528",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node529.example.com",
+    "description": "连接到服务器集群中的节点 529",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node530.example.com",
+    "description": "连接到服务器集群中的节点 530",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node531.example.com",
+    "description": "连接到服务器集群中的节点 531",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node532.example.com",
+    "description": "连接到服务器集群中的节点 532",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node533.example.com",
+    "description": "连接到服务器集群中的节点 533",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node534.example.com",
+    "description": "连接到服务器集群中的节点 534",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node535.example.com",
+    "description": "连接到服务器集群中的节点 535",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node536.example.com",
+    "description": "连接到服务器集群中的节点 536",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node537.example.com",
+    "description": "连接到服务器集群中的节点 537",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node538.example.com",
+    "description": "连接到服务器集群中的节点 538",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node539.example.com",
+    "description": "连接到服务器集群中的节点 539",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node540.example.com",
+    "description": "连接到服务器集群中的节点 540",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node541.example.com",
+    "description": "连接到服务器集群中的节点 541",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node542.example.com",
+    "description": "连接到服务器集群中的节点 542",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node543.example.com",
+    "description": "连接到服务器集群中的节点 543",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node544.example.com",
+    "description": "连接到服务器集群中的节点 544",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node545.example.com",
+    "description": "连接到服务器集群中的节点 545",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node546.example.com",
+    "description": "连接到服务器集群中的节点 546",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node547.example.com",
+    "description": "连接到服务器集群中的节点 547",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node548.example.com",
+    "description": "连接到服务器集群中的节点 548",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  },
+  {
+    "command": "ssh user@node549.example.com",
+    "description": "连接到服务器集群中的节点 549",
+    "tags": [
+      "ssh",
+      "remote",
+      "cluster"
+    ]
+  }
+]

@@ -20,3 +20,4 @@ CREATE TABLE IF NOT EXISTS config (
 -- Initial configuration placeholders
 INSERT OR IGNORE INTO config (key, value) VALUES ('deepseek_api_key', '');
 INSERT OR IGNORE INTO config (key, value) VALUES ('deepseek_model', 'deepseek-chat');
+INSERT OR IGNORE INTO config (key, value) VALUES ('ai_mode', 'auto');
