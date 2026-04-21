@@ -1,5 +1,6 @@
 <script setup lang="ts">
-  import { ref, onMounted, watch } from 'vue';
+  import { ref, onMounted, watch, computed } from 'vue';
+  import MarkdownIt from 'markdown-it';
   import { invoke } from '@tauri-apps/api/core';
   import { useSettingsStore } from '../stores/settings';
   import { useKnowledgeStore } from '../stores/knowledge';
@@ -7,6 +8,14 @@
 
   const settingsStore = useSettingsStore();
   const knowledgeStore = useKnowledgeStore();
+  const md = new MarkdownIt({
+    html: false,
+    linkify: true,
+    typographer: true
+  });
+  // 控制保存按钮显隐
+  const showSaveButton = ref(true);
+
 
   const prompt = ref('');
   const isGenerating = ref(false);
@@ -15,6 +24,17 @@
   const isExecuted = ref(false);
   const isSavingToKB = ref(false);
   const saveToKBSuccess = ref(false);
+  // 当成功后 3 秒后淡出并隐藏
+  watch(saveToKBSuccess, function (val) {
+    if (val) {
+      // 先保持可见，3 秒后隐藏
+      setTimeout(function () {
+        saveToKBSuccess.value = false;
+        showSaveButton.value = false;
+      }, 3000);
+    }
+  });
+
   const generatedCommand = ref('');
   const commandSource = ref<'ai' | 'local'>('ai');
   const viewState = ref<'minimized' | 'compact' | 'full'>((localStorage.getItem('ssh_ai_view_state') as 'minimized' | 'compact' | 'full') || 'minimized');
@@ -24,39 +44,46 @@
     localStorage.setItem('ssh_ai_view_state', newState);
   });
 
+  const renderedRisk = computed(() => {
+    if (!riskAssessment.value) return '';
+    return md.render(riskAssessment.value);
+  });
+
   onMounted(async () => {
     if (!settingsStore.isLoaded) {
       await settingsStore.loadSettings();
     }
+    if (!knowledgeStore.isLoaded) {
+      await knowledgeStore.initStore();
+    }
   });
 
-  const generateCommand = async () => {
+  async function generateCommand() {
     if (!prompt.value) return;
+    // start loading
+    isGenerating.value = true;
     generatedCommand.value = '';
     riskAssessment.value = '';
     commandSource.value = 'ai';
     saveToKBSuccess.value = false;
 
-    // 1. Try Local Lookup (if mode is auto or local)
-    if (settingsStore.aiMode !== 'ai') {
-      const localMatch = knowledgeStore.searchLocal(prompt.value);
-      if (localMatch) {
-        generatedCommand.value = localMatch.command;
-        commandSource.value = 'local';
-        isGenerating.value = false;
-        return;
-      }
-      
-      // If local only and no match, quit
-      if (settingsStore.aiMode === 'local') {
-        generatedCommand.value = '未在本地知识库中找到匹配指令。';
-        isGenerating.value = false;
-        return;
-      }
-    }
-
-    // 2. AI Generation fallback
     try {
+      // 1. Try Local Lookup (if mode is auto or local)
+      if (settingsStore.aiMode !== 'ai') {
+        const localMatch = knowledgeStore.searchLocal(prompt.value);
+        if (localMatch) {
+          generatedCommand.value = localMatch.command;
+          commandSource.value = 'local';
+          return; // early return, loading will be cleared in finally
+        }
+        // If local only and no match, quit
+        if (settingsStore.aiMode === 'local') {
+          generatedCommand.value = '未在本地知识库中找到匹配指令。';
+          return;
+        }
+      }
+
+      // 2. AI Generation fallback
       const res = await invoke<string>('generate_ai_command', {
         prompt: prompt.value,
         apiKey: settingsStore.deepseekApiKey || ''
@@ -69,19 +96,43 @@
     } finally {
       isGenerating.value = false;
     }
-  };
+  }
 
-  const saveToKB = () => {
+  // Reset success state after 3 seconds with fade-out effect
+  watch(saveToKBSuccess, (val) => {
+    if (val) {
+      // Keep the success icon visible for 3 s, then hide it
+      setTimeout(() => {
+        saveToKBSuccess.value = false;
+      }, 3000);
+    }
+  });
+
+  // Add CSS class for fade-out transition (applied via inline style)
+  const saveButtonStyle = computed(() => ({
+    transition: 'opacity 0.5s',
+    opacity: saveToKBSuccess.value ? 1 : 1,
+  }));
+
+  async function saveToKB() {
     if (!generatedCommand.value || commandSource.value === 'local') return;
     isSavingToKB.value = true;
-    const result = knowledgeStore.addCommand(generatedCommand.value, prompt.value || 'AI 生成的指令');
-    if (result.success) {
-      saveToKBSuccess.value = true;
+    try {
+      const result = await knowledgeStore.addCommand(generatedCommand.value, prompt.value || 'AI 生成的指令');
+      if (result.success) {
+        saveToKBSuccess.value = true;
+      } else {
+        alert(result.message);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('保存失败，请查看控制台错误信息');
+    } finally {
+      isSavingToKB.value = false;
     }
-    isSavingToKB.value = false;
-  };
+  }
 
-  const reviewCommand = async () => {
+  async function reviewCommand() {
     if (!generatedCommand.value) return;
     isReviewing.value = true;
 
@@ -97,14 +148,25 @@
     } finally {
       isReviewing.value = false;
     }
-  };
+  }
 
-  const executeCommand = async () => {
+  async function copyToTerminal() {
+    if (!generatedCommand.value) return;
+    try {
+      const { emit } = await import('@tauri-apps/api/event');
+      await emit('terminal-input', generatedCommand.value);
+      // No execution flag, just fill terminal input
+    } catch (e) {
+      console.error('Failed to copy to terminal:', e);
+    }
+  }
+
+  // Execute command (fills terminal and triggers execution flag)
+  async function executeCommand() {
     if (!generatedCommand.value) return;
     try {
       const { emit } = await import('@tauri-apps/api/event');
       await emit('terminal-input', generatedCommand.value + '\n');
-
       isExecuted.value = true;
       setTimeout(() => {
         isExecuted.value = false;
@@ -112,7 +174,8 @@
     } catch (e) {
       console.error('Failed to emit terminal input:', e);
     }
-  };
+  }
+
 </script>
 
 <template>
@@ -165,7 +228,7 @@
             <AlertTriangle :size="18" />
             <span>安全专家建议：</span>
           </div>
-          <p class="text-[11px] text-slate-300 leading-relaxed whitespace-pre-wrap">{{ riskAssessment }}</p>
+          <div class="markdown-content text-[11px] text-slate-300 leading-relaxed" v-html="renderedRisk"></div>
           <button @click="riskAssessment = ''"
             class="mt-2 text-xs text-slate-500 hover:text-slate-300 underline">忽略警告并关闭</button>
         </div>
@@ -187,19 +250,27 @@
                 </span>
               </div>
               <div class="flex space-x-1">
-                <button v-if="commandSource === 'ai'" @click="saveToKB" :disabled="saveToKBSuccess"
-                  class="p-1.5 hover:bg-blue-500/20 text-blue-400 disabled:text-emerald-500 rounded-lg transition-colors" title="存入本地知识库">
-                  <BookMarked v-if="saveToKBSuccess" :size="14" />
-                  <Star v-else :size="14" />
-                </button>
+                 <button v-if="commandSource === 'ai' && showSaveButton" @click="saveToKB" :disabled="saveToKBSuccess || isSavingToKB"
+                   class="p-1.5 hover:bg-blue-500/20 text-blue-400 disabled:text-emerald-500 rounded-lg transition-colors"
+                   title="存入本地知识库"
+                   :style="saveButtonStyle">
+                   <Loader2 v-if="isSavingToKB" class="animate-spin" :size="14" />
+                   <BookMarked v-else-if="saveToKBSuccess" :size="14" />
+                   <Star v-else :size="14" />
+                 </button>
                 <button @click="reviewCommand" :disabled="isReviewing"
                   class="p-1.5 hover:bg-amber-500/20 text-amber-500 rounded-lg transition-colors" title="审查风险">
                   <Loader2 v-if="isReviewing" class="animate-spin" :size="14" />
                   <ShieldAlert v-else :size="14" />
                 </button>
+                <button @click="copyToTerminal"
+                        class="p-1.5 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors"
+                        title="复制到终端（不执行）">
+                  <Copy :size="14" />
+                </button>
                 <button @click="executeCommand"
                   class="p-1.5 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors"
-                  :title="isExecuted ? '指令已发送' : '立即执行'">
+                  :title="isExecuted ? '已执行' : '执行'">
                   <CheckCircle v-if="isExecuted" :size="14" />
                   <Play v-else :size="14" />
                 </button>
@@ -287,5 +358,29 @@
     transition-property: all;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 300ms;
+  }
+
+  /* Markdown Styles */
+  .markdown-content :deep(p) {
+    margin-bottom: 0.5rem;
+  }
+  .markdown-content :deep(p:last-child) {
+    margin-bottom: 0;
+  }
+  .markdown-content :deep(strong) {
+    color: #f59e0b;
+    font-weight: 700;
+  }
+  .markdown-content :deep(ul), .markdown-content :deep(ol) {
+    margin-left: 1rem;
+    margin-bottom: 0.5rem;
+    list-style-type: disc;
+  }
+  .markdown-content :deep(code) {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-family: monospace;
+    color: #10b981;
   }
 </style>

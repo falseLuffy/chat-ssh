@@ -26,21 +26,22 @@ onMounted(() => {
   }
 });
 
-const handleSave = () => {
+const handleSave = async () => {
   if (!name.value || !host.value || !username.value) return;
   
-  const serverData = {
+  const serverData: any = {
     name: name.value,
     host: host.value,
     port: port.value,
     username: username.value,
-    password: password.value,
+    auth_type: 'password',
+    auth_secret: password.value,
   };
 
   if (props.editServer) {
-    serverStore.updateServer(props.editServer.id, serverData);
+    await serverStore.updateServer(props.editServer.id, serverData);
   } else {
-    serverStore.addServer(serverData);
+    await serverStore.addServer(serverData);
   }
   
   emit('close');

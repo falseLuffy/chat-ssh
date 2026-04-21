@@ -264,6 +264,18 @@ pub fn run() {
                         description: "initial",
                         sql: include_str!("../migrations/initial.sql"),
                         kind: tauri_plugin_sql::MigrationKind::Up,
+                    },
+                    tauri_plugin_sql::Migration {
+                        version: 2,
+                        description: "add_user_knowledge",
+                        sql: "CREATE TABLE IF NOT EXISTS user_knowledge (id INTEGER PRIMARY KEY AUTOINCREMENT, command TEXT NOT NULL, description TEXT, tags TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);",
+                        kind: tauri_plugin_sql::MigrationKind::Up,
+                    },
+                    tauri_plugin_sql::Migration {
+                        version: 3,
+                        description: "add_server_auth_fields",
+                        sql: "ALTER TABLE servers ADD COLUMN auth_type TEXT NOT NULL DEFAULT 'password'; ALTER TABLE servers ADD COLUMN auth_secret TEXT;",
+                        kind: tauri_plugin_sql::MigrationKind::Up,
                     }
                 ])
                 .build()

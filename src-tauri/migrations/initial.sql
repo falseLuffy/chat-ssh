@@ -4,9 +4,8 @@ CREATE TABLE IF NOT EXISTS servers (
     name TEXT NOT NULL,
     host TEXT NOT NULL,
     username TEXT NOT NULL,
+    password TEXT,
     port INTEGER NOT NULL DEFAULT 22,
-    auth_type TEXT NOT NULL, -- 'password' or 'key'
-    auth_secret TEXT, -- Encrypted password or path to private key
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

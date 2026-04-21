@@ -2,10 +2,12 @@
   import { ref } from 'vue';
   import { invoke } from '@tauri-apps/api/core';
   import { open, message } from '@tauri-apps/plugin-dialog';
-  import { Plus, Server as ServerIcon, Globe, MoreVertical, FileUp } from 'lucide-vue-next';
+  import { Plus, Server as ServerIcon, Globe, MoreVertical, FileUp, FileDown, LogOut, Edit2, Trash2 } from 'lucide-vue-next';
   import { useServerStore, type Server } from '../stores/server';
   import AddServerModal from './AddServerModal.vue';
   import PasswordPromptModal from './PasswordPromptModal.vue';
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 
   const serverStore = useServerStore();
   const showAddModal = ref(false);
@@ -13,7 +15,21 @@
   const editingServer = ref<Server | null>(null);
   const retryServer = ref<Server | null>(null);
   const activeMenuId = ref<number | null>(null);
+  const showActionDropdown = ref(false);
   
+  // Close dropdown when clicking outside
+  const toggleActionDropdown = (e: Event) => {
+    e.stopPropagation();
+    showActionDropdown.value = !showActionDropdown.value;
+    if (showActionDropdown.value) {
+      const closeDropdown = () => {
+        showActionDropdown.value = false;
+        window.removeEventListener('click', closeDropdown);
+      };
+      window.addEventListener('click', closeDropdown);
+    }
+  };
+
   // Context Menu State
   const showContextMenu = ref(false);
   const contextMenuPos = ref({ x: 0, y: 0 });
@@ -32,7 +48,77 @@
     window.addEventListener('click', closeMenu);
   };
 
+  const exportServers = async () => {
+    showContextMenu.value = false;
+    try {
+      if (serverStore.servers.length === 0) {
+        await message('没有可导出的服务器配置', { title: '导出提示', kind: 'warning' });
+        return;
+      }
+
+      const filePath = await save({
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        defaultPath: 'ssh_servers_export.json'
+      });
+
+      if (filePath) {
+        // Exporting only essential data, omitting status
+        const exportData = serverStore.servers.map(s => ({
+          name: s.name,
+          host: s.host,
+          port: s.port,
+          username: s.username,
+          auth_type: s.auth_type,
+          auth_secret: s.auth_secret || s.password
+        }));
+
+        await writeTextFile(filePath, JSON.stringify(exportData, null, 2));
+        await message('服务器配置已导出成功', { title: '导出成功', kind: 'info' });
+      }
+    } catch (e) {
+      console.error('Export failed:', e);
+      await message(String(e), { title: '导出失败', kind: 'error' });
+    }
+  };
+
+  const importServers = async () => {
+    showContextMenu.value = false;
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      });
+
+      if (selected && !Array.isArray(selected)) {
+        const content = await readTextFile(selected);
+        const servers = JSON.parse(content);
+        
+        if (!Array.isArray(servers)) {
+          throw new Error('无效的备份文件格式');
+        }
+
+        let count = 0;
+        for (const s of servers) {
+          await serverStore.addServer({
+            name: s.name,
+            host: s.host,
+            port: s.port || 22,
+            username: s.username,
+            auth_type: s.auth_type || 'password',
+            auth_secret: s.auth_secret || ''
+          });
+          count++;
+        }
+        await message(`成功从备份导入 ${count} 个服务器配置`, { title: '导入成功', kind: 'info' });
+      }
+    } catch (e) {
+      console.error('Import failed:', e);
+      await message('导入失败: ' + String(e), { title: '导入失败', kind: 'error' });
+    }
+  };
+
   const importXshell = async () => {
+    showContextMenu.value = false;
     try {
       const selected = await open({
         multiple: true,
@@ -45,12 +131,13 @@
         let passCount = 0;
         
         for (const session of results) {
-          serverStore.addServer({
+          await serverStore.addServer({
             name: session.name,
             host: session.host,
-            port: session.port,
+            port: session.port || 22,
             username: session.user,
-            password: session.password || ''
+            auth_type: 'password',
+            auth_secret: session.password || ''
           });
           count++;
           if (session.password) passCount++;
@@ -72,6 +159,7 @@
   };
 
   const handleDblClick = async (server: Server) => {
+    showContextMenu.value = false;
     if (server.status === 'online') {
       serverStore.setActiveServer(server.id);
       emit('switch-tab', 'terminal');
@@ -112,7 +200,7 @@
   const handleRetrySubmit = async (newPassword: string) => {
     if (retryServer.value) {
       // Update password in store
-      serverStore.updateServer(retryServer.value.id, { password: newPassword });
+      await serverStore.updateServer(retryServer.value.id, { auth_secret: newPassword, auth_type: 'password' });
       
       // Close modal
       const serverToRetry = serverStore.servers.find(s => s.id === retryServer.value?.id);
@@ -129,6 +217,7 @@
   const openAddModal = () => {
     editingServer.value = null;
     showAddModal.value = true;
+    showContextMenu.value = false;
   };
 
   const openEditModal = (event: Event, server: Server) => {
@@ -136,6 +225,7 @@
     editingServer.value = server;
     showAddModal.value = true;
     activeMenuId.value = null;
+    showContextMenu.value = false;
   };
 
   const toggleMenu = (event: Event, id: number) => {
@@ -147,12 +237,14 @@
     event.stopPropagation();
     serverStore.deleteServer(id);
     activeMenuId.value = null;
+    showContextMenu.value = false;
   };
 
   const handleDisconnect = async (event: Event, id: number) => {
     event.stopPropagation();
     await serverStore.disconnectServer(id);
     activeMenuId.value = null;
+    showContextMenu.value = false;
   };
 </script>
 
@@ -161,13 +253,35 @@
     <!-- Sidebar Header -->
     <div class="h-12 flex items-center justify-between px-4 border-b border-slate-800">
       <h2 class="text-xs font-bold uppercase tracking-widest text-slate-500">我的服务器</h2>
-      <div class="flex items-center space-x-1">
-        <button @click.stop="importXshell" class="p-1 hover:bg-slate-800 rounded-md text-emerald-400 transition-colors" title="从 Xshell 导入">
-          <FileUp :size="16" />
-        </button>
-        <button @click.stop="openAddModal" class="p-1 hover:bg-slate-800 rounded-md text-blue-400 transition-colors" title="添加服务器">
+      <div class="relative">
+        <button @click="toggleActionDropdown" 
+          class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all flex items-center space-x-1 border border-transparent hover:border-slate-700">
           <Plus :size="16" />
+          <span class="text-xs font-medium">操作</span>
         </button>
+
+        <!-- Action Dropdown -->
+        <div v-if="showActionDropdown" 
+          class="absolute right-0 top-10 w-44 bg-[#1e293b]/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl z-[60] py-1 animate-in fade-in zoom-in-95 duration-150">
+          <button @click="openAddModal" class="w-full text-left px-3 py-2 text-xs hover:bg-blue-600/10 text-slate-300 hover:text-blue-400 transition-colors flex items-center space-x-2">
+            <Plus :size="14" />
+            <span>添加新服务器</span>
+          </button>
+          <div class="h-px bg-slate-800 my-1"></div>
+          <button @click="importServers" class="w-full text-left px-3 py-2 text-xs hover:bg-emerald-600/10 text-slate-300 hover:text-emerald-400 transition-colors flex items-center space-x-2">
+            <ServerIcon :size="14" />
+            <span>导入备份 (JSON)</span>
+          </button>
+          <button @click="importXshell" class="w-full text-left px-3 py-2 text-xs hover:bg-emerald-600/10 text-slate-300 hover:text-emerald-400 transition-colors flex items-center space-x-2">
+            <FileUp :size="14" />
+            <span>从 Xshell 导入</span>
+          </button>
+          <div class="h-px bg-slate-800 my-1"></div>
+          <button @click="exportServers" class="w-full text-left px-3 py-2 text-xs hover:bg-amber-600/10 text-slate-300 hover:text-amber-500 transition-colors flex items-center space-x-2">
+            <FileDown :size="14" />
+            <span>导出配置 (JSON)</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -279,9 +393,17 @@
             <Plus :size="14" class="group-hover/item:scale-110 transition-transform" /> 
             <span class="group-hover/item:translate-x-1 transition-transform">添加新服务器</span>
           </button>
+          <button @click="importServers" class="w-full text-left px-3 py-2 text-xs hover:bg-emerald-600/90 text-emerald-500 hover:text-white transition-all flex items-center space-x-2 group/item">
+            <Plus :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <span class="group-hover/item:translate-x-1 transition-transform">导入备份 (JSON)</span>
+          </button>
           <button @click="importXshell" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
             <FileUp :size="14" class="group-hover/item:scale-110 transition-transform" /> 
-            <span class="group-hover/item:translate-x-1 transition-transform">导入 Xshell 配置</span>
+            <span class="group-hover/item:translate-x-1 transition-transform">从 Xshell 导入</span>
+          </button>
+          <button @click="exportServers" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
+            <FileDown :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <span class="group-hover/item:translate-x-1 transition-transform">导出服务器配置</span>
           </button>
         </template>
       </div>

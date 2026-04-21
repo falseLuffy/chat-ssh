@@ -4990,5 +4990,295 @@
       "remote",
       "cluster"
     ]
+  },
+  {
+    "command": "sudo ufw status verbose",
+    "description": "以详细模式查看已启用的防火墙规则",
+    "tags": [
+      "ufw",
+      "firewall",
+      "status",
+      "防火墙",
+      "状态"
+    ]
+  },
+  {
+    "command": "sudo ufw allow 80/tcp",
+    "description": "允许通过防火墙进入的 80 端口 TCP 流量 (HTTP)",
+    "tags": [
+      "ufw",
+      "allow",
+      "port",
+      "80",
+      "http"
+    ]
+  },
+  {
+    "command": "sudo ufw allow 443/tcp",
+    "description": "允许通过防火墙进入的 443 端口 TCP 流量 (HTTPS)",
+    "tags": [
+      "ufw",
+      "allow",
+      "port",
+      "443",
+      "https"
+    ]
+  },
+  {
+    "command": "sudo ufw deny 22/tcp",
+    "description": "拒绝所有进入 22 端口的 TCP 流量 (SSH)",
+    "tags": [
+      "ufw",
+      "deny",
+      "ssh",
+      "安全"
+    ]
+  },
+  {
+    "command": "sudo ufw enable",
+    "description": "启用 UFW 防火墙服务并使其开机自启",
+    "tags": [
+      "ufw",
+      "enable",
+      "start",
+      "开启"
+    ]
+  },
+  {
+    "command": "sudo ufw disable",
+    "description": "关闭 UFW 防火墙服务",
+    "tags": [
+      "ufw",
+      "disable",
+      "stop",
+      "关闭"
+    ]
+  },
+  {
+    "command": "sudo ufw reload",
+    "description": "重新加载防火墙配置",
+    "tags": [
+      "ufw",
+      "reload",
+      "update",
+      "重载"
+    ]
+  },
+  {
+    "command": "sudo ufw delete allow 80/tcp",
+    "description": "删除允许通过 80 端口流量的规则",
+    "tags": [
+      "ufw",
+      "delete",
+      "remove",
+      "删除"
+    ]
+  },
+  {
+    "command": "sudo ufw allow from 192.168.1.100",
+    "description": "允许来自特定 IP 地址的所有流量进入",
+    "tags": [
+      "ufw",
+      "whitelist",
+      "ip",
+      "白名单"
+    ]
+  },
+  {
+    "command": "firewall-cmd --state",
+    "description": "检查 firewalld 服务的运行状态",
+    "tags": [
+      "firewall-cmd",
+      "status",
+      "centos",
+      "状态"
+    ]
+  },
+  {
+    "command": "sudo firewall-cmd --permanent --add-port=80/tcp",
+    "description": "永久开放 80 端口 (需 reload 生效)",
+    "tags": [
+      "firewall-cmd",
+      "add",
+      "port",
+      "permanent",
+      "开放端口"
+    ]
+  },
+  {
+    "command": "sudo firewall-cmd --permanent --remove-port=80/tcp",
+    "description": "永久移除 80 端口规则",
+    "tags": [
+      "firewall-cmd",
+      "remove",
+      "port",
+      "关闭端口"
+    ]
+  },
+  {
+    "command": "sudo firewall-cmd --reload",
+    "description": "不中断连接的情况下重新加载防火墙配置",
+    "tags": [
+      "firewall-cmd",
+      "reload",
+      "refresh",
+      "刷新"
+    ]
+  },
+  {
+    "command": "firewall-cmd --get-active-zones",
+    "description": "查看当前激活的网络区域",
+    "tags": [
+      "firewall-cmd",
+      "zone",
+      "network",
+      "区域"
+    ]
+  },
+  {
+    "command": "sudo iptables -L -n -v",
+    "description": "详细列出所有链的 iptables 规则（数字显示地址/端口）",
+    "tags": [
+      "iptables",
+      "list",
+      "rules",
+      "规则"
+    ]
+  },
+  {
+    "command": "sudo iptables -F",
+    "description": "清除所有链中的所有规则 (慎用，可能导致断开连接)",
+    "tags": [
+      "iptables",
+      "flush",
+      "clear",
+      "清除"
+    ]
+  },
+  {
+    "command": "sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT",
+    "description": "允许所有进入 22 端口的 TCP 流量 (入链添加)",
+    "tags": [
+      "iptables",
+      "allow",
+      "ssh",
+      "input"
+    ]
+  },
+  {
+    "command": "netstat -tunlp",
+    "description": "查看当前系统所有监听中的端口及其对应的进程 ID (PID)",
+    "tags": [
+      "netstat",
+      "listen",
+      "port",
+      "pid",
+      "端口占用"
+    ]
+  },
+  {
+    "command": "netstat -tunlp | grep :80",
+    "description": "查找占用 80 端口的进程",
+    "tags": [
+      "netstat",
+      "grep",
+      "find",
+      "port",
+      "查找端口"
+    ]
+  },
+  {
+    "command": "ss -lntu",
+    "description": "快速显示正在监听的 TCP 和 UDP 端口 (ss 命令比 netstat 更高效)",
+    "tags": [
+      "ss",
+      "listen",
+      "tcp",
+      "udp",
+      "端口"
+    ]
+  },
+  {
+    "command": "ss -antp",
+    "description": "显示所有 TCP 连接及其关联的进程信息",
+    "tags": [
+      "ss",
+      "tcp",
+      "process",
+      "连接"
+    ]
+  },
+  {
+    "command": "sudo lsof -i :80",
+    "description": "通过 lsof 查看占用 80 端口的进程和详细信息",
+    "tags": [
+      "lsof",
+      "port",
+      "occupy",
+      "占用",
+      "进程"
+    ]
+  },
+  {
+    "command": "sudo fuser -v 80/tcp",
+    "description": "查看哪个进程正在通过 TCP 协议访问 80 端口",
+    "tags": [
+      "fuser",
+      "port",
+      "process",
+      "查看进程"
+    ]
+  },
+  {
+    "command": "sudo fuser -k 80/tcp",
+    "description": "杀死占用 80 端口的所有进程",
+    "tags": [
+      "fuser",
+      "kill",
+      "port",
+      "强制关闭"
+    ]
+  },
+  {
+    "command": "nmap -sT -O localhost",
+    "description": "扫描本地主机开放的端口并尝试识别操作系统",
+    "tags": [
+      "nmap",
+      "scan",
+      "port",
+      "localhost",
+      "扫描"
+    ]
+  },
+  {
+    "command": "telnet 127.0.0.1 80",
+    "description": "测试本地 80 端口是否连通",
+    "tags": [
+      "telnet",
+      "test",
+      "connectivity",
+      "测试连通性"
+    ]
+  },
+  {
+    "command": "nc -zv 127.0.0.1 80",
+    "description": "使用 netcat (nc) 快速扫描端口是否开放",
+    "tags": [
+      "nc",
+      "netcat",
+      "scan",
+      "test",
+      "扫描"
+    ]
+  },
+  {
+    "command": "curl -v telnet://127.0.0.1:80",
+    "description": "通过 curl 探测远程/本地端口连通性",
+    "tags": [
+      "curl",
+      "test",
+      "port",
+      "探测"
+    ]
   }
 ]

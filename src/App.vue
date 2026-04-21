@@ -1,5 +1,8 @@
 <script setup lang="ts">
-  import { ref } from 'vue';
+  import { ref, onMounted } from 'vue';
+  import { useSettingsStore } from './stores/settings';
+  import { useServerStore } from './stores/server';
+  import { useKnowledgeStore } from './stores/knowledge';
   import AiChatBox from './components/AiChatBox.vue';
   import ServerSidebar from './components/ServerSidebar.vue';
   import TerminalView from './views/TerminalView.vue';
@@ -7,8 +10,21 @@
   import SettingsModal from './components/SettingsModal.vue';
   import { Terminal, Shield, Settings as SettingsIcon, Server } from 'lucide-vue-next';
 
+  const settingsStore = useSettingsStore();
+  const serverStore = useServerStore();
+  const knowledgeStore = useKnowledgeStore();
+  
   const activeTab = ref('terminal');
   const showSettingsModal = ref(false);
+
+  onMounted(async () => {
+    // Parallel init
+    await Promise.all([
+      settingsStore.loadSettings(),
+      serverStore.initStore(),
+      knowledgeStore.initStore()
+    ]);
+  });
 </script>
 
 <template>
