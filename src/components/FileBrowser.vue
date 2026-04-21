@@ -280,11 +280,7 @@ onMounted(loadFiles);
 
 watch(() => props.activeTab, async (newTab) => {
   if (newTab === 'files') {
-    const active = serverStore.activeServer;
-    if (active && active.status === 'offline') {
-      await serverStore.connectServer(active);
-      loadFiles(); // Only load if we just connected
-    }
+    // Do nothing, keep the current state to avoid unnecessary refreshes
   }
 });
 
