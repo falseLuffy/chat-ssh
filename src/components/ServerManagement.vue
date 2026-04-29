@@ -1,11 +1,69 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { LayoutDashboard, Box, Settings, Activity } from 'lucide-vue-next';
+import { LayoutDashboard, Box, Settings, Activity, Sparkles } from 'lucide-vue-next';
+import { invoke } from '@tauri-apps/api/core';
+import { useServerStore } from '../stores/server';
+import { useSettingsStore } from '../stores/settings';
 import DashboardOverview from './DashboardOverview.vue';
 import DockerView from './DockerView.vue';
 import ServicesView from './ServicesView.vue';
+import AiDiagnosisModal from './AiDiagnosisModal.vue';
+
+const serverStore = useServerStore();
+const settingsStore = useSettingsStore();
 
 const activeSubTab = ref('overview');
+const isDiagnosisOpen = ref(false);
+const isGenerating = ref(false);
+const diagnosisResult = ref('');
+const diagnosisError = ref('');
+
+const runDiagnosis = async () => {
+  if (!serverStore.activeServer) return;
+  
+  isDiagnosisOpen.value = true;
+  isGenerating.value = true;
+  diagnosisError.value = '';
+  diagnosisResult.value = '';
+
+  try {
+    // 1. Collect Context
+    const [sysInfo, dockerInfo, servicesInfo] = await Promise.all([
+      invoke<any>('get_server_sys_info', { serverName: serverStore.activeServer.name }),
+      invoke<any[]>('get_docker_containers', { serverName: serverStore.activeServer.name }),
+      invoke<any[]>('get_system_services', { serverName: serverStore.activeServer.name })
+    ]);
+
+    const context = `
+      [系统状态]
+      主机名: ${sysInfo.hostname}
+      运行时间: ${sysInfo.uptime}
+      CPU负载: ${sysInfo.cpu.usage}
+      内存: 已用 ${Math.round(sysInfo.memory.used/1024/1024)}MB / 总计 ${Math.round(sysInfo.memory.total/1024/1024)}MB
+      磁盘: ${sysInfo.disks.map((d: any) => `${d.mount} ${d.percent}%`).join(', ')}
+
+      [Docker容器]
+      ${dockerInfo.map(c => `- ${c.Names}: ${c.State} (${c.Status})`).join('\n')}
+
+      [关键服务状态]
+      ${servicesInfo.filter(s => s.active === 'failed' || s.name.includes('nginx') || s.name.includes('mysql') || s.name.includes('docker')).map(s => `- ${s.name}: ${s.active}`).join('\n')}
+    `;
+
+    // 2. Call AI
+    const result = await invoke<string>('diagnose_server_issue', {
+      serverName: serverStore.activeServer.name,
+      context,
+      apiKey: settingsStore.deepseekApiKey || ''
+    });
+
+    diagnosisResult.value = result;
+  } catch (e) {
+    console.error('Diagnosis failed:', e);
+    diagnosisError.value = String(e);
+  } finally {
+    isGenerating.value = false;
+  }
+};
 
 const subTabs = [
   { id: 'overview', name: '概览', icon: LayoutDashboard },
@@ -35,14 +93,23 @@ const subTabs = [
         </button>
       </div>
       
-      <div class="ml-auto flex items-center space-x-2 text-[10px] uppercase tracking-widest font-bold text-slate-500">
-        <Activity :size="12" class="text-emerald-500 animate-pulse" />
-        <span>实时监控中</span>
+      <div class="ml-auto flex items-center space-x-4">
+        <button 
+          @click="runDiagnosis"
+          class="flex items-center space-x-2 px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold transition-all group"
+        >
+          <Sparkles :size="14" class="group-hover:animate-spin-slow" />
+          <span>智能诊断</span>
+        </button>
+        <div class="flex items-center space-x-2 text-[10px] uppercase tracking-widest font-bold text-slate-500">
+          <Activity :size="12" class="text-emerald-500 animate-pulse" />
+          <span>实时监控中</span>
+        </div>
       </div>
     </div>
 
     <!-- Sub-tab Content -->
-    <div class="flex-1 min-h-0 overflow-hidden">
+    <div class="flex-1 min-h-0 overflow-hidden flex flex-col">
       <transition 
         name="fade" 
         mode="out-in"
@@ -52,6 +119,15 @@ const subTabs = [
         <ServicesView v-else-if="activeSubTab === 'services'" />
       </transition>
     </div>
+
+    <!-- AI Diagnosis Modal -->
+    <AiDiagnosisModal 
+      :is-open="isDiagnosisOpen"
+      :is-generating="isGenerating"
+      :result="diagnosisResult"
+      :error="diagnosisError"
+      @close="isDiagnosisOpen = false"
+    />
   </div>
 </template>
 

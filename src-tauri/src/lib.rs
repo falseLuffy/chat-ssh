@@ -334,6 +334,41 @@ async fn manage_system_service(
     }
 }
 
+#[tauri::command]
+async fn diagnose_server_issue(
+    serverName: &str,
+    context: &str,
+    apiKey: &str,
+) -> Result<String, String> {
+    let prompt = format!(
+        "你是一个资深的 Linux 运维专家。请根据以下服务器的实时状态上下文，分析是否存在异常（如 CPU 过高、内存不足、容器崩溃、服务故障等），并给出具体的诊断结论和修复建议。\n\n服务器名称: {}\n上下文信息:\n{}\n\n请使用 Markdown 格式回复，语言为中文。",
+        serverName, context
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://api.deepseek.com/chat/completions")
+        .header("Authorization", format!("Bearer {}", apiKey))
+        .json(&serde_json::json!({
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "system", "content": "你是一个专业的服务器诊断助手。"},
+                {"role": "user", "content": prompt}
+            ],
+            "stream": false
+        }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let res_json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    let content = res_json["choices"][0]["message"]["content"]
+        .as_str()
+        .ok_or("Failed to get content from AI response")?;
+
+    Ok(content.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -409,7 +444,8 @@ pub fn run() {
             get_docker_containers,
             manage_docker_container,
             get_system_services,
-            manage_system_service
+            manage_system_service,
+            diagnose_server_issue
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

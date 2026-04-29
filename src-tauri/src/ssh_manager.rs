@@ -257,7 +257,7 @@ impl SshSession {
         // 2. CPU Load (1min)
         // 3. Memory info (bytes)
         // 4. Disk info (bytes)
-        let cmd = "hostname; uptime -p; cat /proc/loadavg; free -b; df -b /";
+        let cmd = "hostname; uptime -p; cat /proc/loadavg; free -b; df -k / | tail -n 1";
         let raw_output = self.execute_command(cmd)?;
         let lines: Vec<&str> = raw_output.lines().collect();
 
@@ -289,16 +289,21 @@ impl SshSession {
         // Parse Disk
         let mut disks = Vec::new();
         for line in &lines {
-            if line.starts_with("/") || line.contains(" /") {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 6 {
-                    let total = parts[1].parse::<u64>().unwrap_or(0);
-                    let used = parts[2].parse::<u64>().unwrap_or(0);
-                    let percent_str = parts[4].replace("%", "");
-                    let percent = percent_str.parse::<u32>().unwrap_or(0);
-                    let mount = parts[5].to_string();
-                    disks.push(DiskInfo { mount, total, used, percent });
-                }
+            // Looking for lines that look like df output for a mount point
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            // df -k output typically has 6 columns. Data line starts with /dev or similar.
+            if parts.len() >= 6 && (parts[0].starts_with('/') || parts[5] == "/") {
+                let total_kb = parts[1].parse::<u64>().unwrap_or(0);
+                let used_kb = parts[2].parse::<u64>().unwrap_or(0);
+                let percent_str = parts[4].replace("%", "");
+                let percent = percent_str.parse::<u32>().unwrap_or(0);
+                let mount = parts[5].to_string();
+                
+                // Convert KB to Bytes
+                let total = total_kb * 1024;
+                let used = used_kb * 1024;
+                
+                disks.push(DiskInfo { mount, total, used, percent });
             }
         }
 

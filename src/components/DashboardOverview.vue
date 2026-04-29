@@ -191,7 +191,7 @@ const formatBytes = (bytes: number) => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col p-6 space-y-6 overflow-y-auto bg-[#0f172a]/30">
+  <div class="h-full flex flex-col p-6 space-y-6 overflow-y-auto bg-[#0f172a]/30 custom-scrollbar-main">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
@@ -300,7 +300,7 @@ const formatBytes = (bytes: number) => {
       </div>
 
       <!-- History Line Chart -->
-      <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-6 rounded-3xl flex flex-col h-80">
+      <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-6 rounded-3xl flex flex-col min-h-[320px]">
         <h3 class="text-sm font-bold text-slate-400 mb-4">负载趋势 (最近 20 次采样)</h3>
         <div class="flex-1 min-h-0">
           <VChart :option="historyOption" autoresize />
