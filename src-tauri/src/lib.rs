@@ -232,6 +232,25 @@ async fn download_remote_file(
     }
 }
 
+#[tauri::command]
+async fn execute_script(
+    server_name: &str,
+    script_content: &str,
+    state: State<'_, AppState>
+) -> Result<String, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(server_name) {
+        session.execute_command(script_content)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn analyze_script_with_ai(script_content: &str, api_key: &str) -> Result<deepseek::ScriptAnalysisResult, String> {
+    deepseek::analyze_script_with_ai(script_content, api_key).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -276,6 +295,12 @@ pub fn run() {
                         description: "add_server_auth_fields",
                         sql: "ALTER TABLE servers ADD COLUMN auth_type TEXT NOT NULL DEFAULT 'password'; ALTER TABLE servers ADD COLUMN auth_secret TEXT;",
                         kind: tauri_plugin_sql::MigrationKind::Up,
+                    },
+                    tauri_plugin_sql::Migration {
+                        version: 4,
+                        description: "add_scripts_and_password",
+                        sql: "CREATE TABLE IF NOT EXISTS scripts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, content TEXT NOT NULL, skip_warning BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP); INSERT OR IGNORE INTO config (key, value) VALUES ('master_password', '');",
+                        kind: tauri_plugin_sql::MigrationKind::Up,
                     }
                 ])
                 .build()
@@ -293,7 +318,9 @@ pub fn run() {
             import_xshell_sessions,
             list_remote_files,
             delete_remote_file,
-            download_remote_file
+            download_remote_file,
+            execute_script,
+            analyze_script_with_ai
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

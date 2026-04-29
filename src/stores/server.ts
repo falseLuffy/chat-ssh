@@ -59,7 +59,7 @@ export const useServerStore = defineStore('server', () => {
       }
 
       // 2. Load from Database
-      const result = await db.select<any[]>('SELECT * FROM servers ORDER BY created_at DESC');
+      const result = await db.select<any[]>('SELECT * FROM servers ORDER BY created_at ASC');
       servers.value = result.map(s => ({
         id: s.id,
         name: s.name,
@@ -96,7 +96,7 @@ export const useServerStore = defineStore('server', () => {
         id: result.lastInsertId,
         status: 'offline',
       };
-      servers.value.unshift(newServer);
+      servers.value.push(newServer);
       return newServer;
     } catch (e) {
       console.error('Failed to add server to SQL:', e);
@@ -136,6 +136,33 @@ export const useServerStore = defineStore('server', () => {
       }
     } catch (e) {
       console.error('Failed to delete server from SQL:', e);
+    }
+  };
+
+  const duplicateServer = async (id: number) => {
+    const serverToCopy = servers.value.find(s => s.id === id);
+    if (!serverToCopy) return;
+
+    try {
+      const db = await Database.load('sqlite:chat_ssh.db');
+      const newName = `${serverToCopy.name} - 副本`;
+      
+      const result = await db.execute(
+        'INSERT INTO servers (name, host, username, port, auth_type, auth_secret) VALUES (?, ?, ?, ?, ?, ?)',
+        [newName, serverToCopy.host, serverToCopy.username, serverToCopy.port, serverToCopy.auth_type, serverToCopy.auth_secret || serverToCopy.password || '']
+      );
+
+      const newServer: Server = {
+        ...serverToCopy,
+        name: newName,
+        id: result.lastInsertId,
+        status: 'offline',
+      };
+      servers.value.push(newServer);
+      return newServer;
+    } catch (e) {
+      console.error('Failed to duplicate server:', e);
+      throw e;
     }
   };
 
@@ -190,6 +217,7 @@ export const useServerStore = defineStore('server', () => {
     addServer,
     updateServer,
     deleteServer,
+    duplicateServer,
     updateStatus,
     connectServer,
     disconnectServer,

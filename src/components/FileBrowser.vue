@@ -4,10 +4,12 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 import { useServerStore } from '../stores/server';
+import { useUIStore } from '../stores/ui';
 import { File, Folder, Upload, Download, Trash2, RefreshCw, Loader2, ChevronLeft, Home, HardDrive, ShieldAlert, LayoutGrid, List, Plus, Copy } from 'lucide-vue-next';
 import InputModal from './InputModal.vue';
 
 const serverStore = useServerStore();
+const ui = useUIStore();
 const currentPath = ref('/root');
 const files = ref<any[]>([]);
 const isLoading = ref(false);
@@ -180,7 +182,7 @@ const handleDownload = async (file: any) => {
 const handleDelete = async (file: any) => {
   if (!serverStore.activeServer) return;
 
-  const confirm = window.confirm(`确定要删除 ${file.name} 吗？`);
+  const confirm = await ui.showConfirm({ title: '删除项目', message: `确定要删除 ${file.name} 吗？`, type: 'danger' });
   if (!confirm) return;
 
   try {

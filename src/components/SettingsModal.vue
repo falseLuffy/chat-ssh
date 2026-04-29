@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { X, Save, Key, Zap, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-vue-next';
+import { X, Save, Key, Zap, Eye, EyeOff, Loader2, CheckCircle, ShieldAlert } from 'lucide-vue-next';
 import { useSettingsStore } from '../stores/settings';
+import { useScriptsStore } from '../stores/scripts';
 
 const emit = defineEmits(['close']);
 const settingsStore = useSettingsStore();
+const scriptsStore = useScriptsStore();
 
 const apiKey = ref('');
 const model = ref('deepseek-chat');
 const aiMode = ref<'auto' | 'local' | 'ai'>('auto');
+const masterPassword = ref('');
 const showKey = ref(false);
+const showMasterKey = ref(false);
 const isSaving = ref(false);
 const saveSuccess = ref(false);
 const errorMessage = ref('');
@@ -19,6 +23,7 @@ onMounted(async () => {
   apiKey.value = settingsStore.deepseekApiKey;
   model.value = settingsStore.selectedModel;
   aiMode.value = settingsStore.aiMode;
+  masterPassword.value = scriptsStore.masterPassword;
 });
 
 const handleSave = async () => {
@@ -27,6 +32,7 @@ const handleSave = async () => {
   errorMessage.value = '';
   try {
     await settingsStore.saveSettings(apiKey.value, model.value, aiMode.value);
+    await scriptsStore.setMasterPassword(masterPassword.value);
     saveSuccess.value = true;
     setTimeout(() => {
       emit('close');
@@ -42,13 +48,13 @@ const handleSave = async () => {
 
 <template>
   <Teleport to="body">
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div class="bg-[#1e293b] border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <!-- Modal Header -->
         <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
           <h3 class="text-lg font-bold text-white flex items-center space-x-2">
             <Zap :size="20" class="text-amber-500" />
-            <span>AI 模型配置</span>
+            <span>系统设置</span>
           </h3>
           <button @click="$emit('close')" class="p-1 hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
             <X :size="20" />
@@ -56,7 +62,7 @@ const handleSave = async () => {
         </div>
 
         <!-- Modal Body -->
-        <div class="p-6 space-y-6">
+        <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           <div class="space-y-2">
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">DeepSeek API Key</label>
             <div class="relative">
@@ -109,6 +115,33 @@ const handleSave = async () => {
             <p class="text-[10px] text-slate-500 italic">
               {{ aiMode === 'auto' ? '优先使用本地知识库，匹配失败时调用 AI。' : aiMode === 'local' ? '完全关闭网络 AI，仅从本地指令集中检索。' : '跳过本地库，所有指令均由 AI 引擎生成。' }}
             </p>
+          </div>
+          
+          <div class="h-px bg-slate-800"></div>
+
+          <!-- Master Password -->
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center">
+              <ShieldAlert class="mr-1 text-rose-500" :size="14" />
+              安全保护密码
+            </label>
+            <div class="relative">
+              <Key class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" :size="16" />
+              <input 
+                v-model="masterPassword" 
+                :type="showMasterKey ? 'text' : 'password'" 
+                placeholder="设置安全密码..." 
+                class="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-10 pr-12 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all text-sm text-slate-200" 
+              />
+              <button 
+                @click="showMasterKey = !showMasterKey" 
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <Eye v-if="!showMasterKey" :size="18" />
+                <EyeOff v-else :size="18" />
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-500">此密码用于在编辑和执行敏感脚本时进行二次验证。</p>
           </div>
 
           <div v-if="errorMessage" class="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs animate-in shake duration-300">

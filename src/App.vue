@@ -3,16 +3,21 @@
   import { useSettingsStore } from './stores/settings';
   import { useServerStore } from './stores/server';
   import { useKnowledgeStore } from './stores/knowledge';
+  import { useScriptsStore } from './stores/scripts';
   import AiChatBox from './components/AiChatBox.vue';
   import ServerSidebar from './components/ServerSidebar.vue';
   import TerminalView from './views/TerminalView.vue';
   import FileBrowser from './components/FileBrowser.vue';
+  import OpsView from './views/OpsView.vue';
   import SettingsModal from './components/SettingsModal.vue';
-  import { Terminal, Shield, Settings as SettingsIcon, Server } from 'lucide-vue-next';
+  import ToastContainer from './components/ui/ToastContainer.vue';
+  import ConfirmDialog from './components/ui/ConfirmDialog.vue';
+  import { Terminal, Shield, Settings as SettingsIcon, Server, Cpu } from 'lucide-vue-next';
 
   const settingsStore = useSettingsStore();
   const serverStore = useServerStore();
   const knowledgeStore = useKnowledgeStore();
+  const scriptsStore = useScriptsStore();
   
   const activeTab = ref('terminal');
   const showSettingsModal = ref(false);
@@ -22,13 +27,16 @@
     await Promise.all([
       settingsStore.loadSettings(),
       serverStore.initStore(),
-      knowledgeStore.initStore()
+      knowledgeStore.initStore(),
+      scriptsStore.initStore()
     ]);
   });
 </script>
 
 <template>
   <div class="flex h-screen w-screen bg-[#0f172a] text-slate-200 overflow-hidden font-sans">
+    <ToastContainer />
+    <ConfirmDialog />
     <SettingsModal v-if="showSettingsModal" @close="showSettingsModal = false" />
     <!-- Sidebar -->
     <ServerSidebar class="w-64 border-r border-slate-800 bg-[#1e293b]/50 backdrop-blur-xl" />
@@ -48,6 +56,11 @@
             <Server :size="16" />
             <span class="text-sm font-medium">文件</span>
           </button>
+          <button @click="activeTab = 'ops'"
+            :class="['flex items-center space-x-2 px-3 py-1 rounded-md transition-all', activeTab === 'ops' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'hover:bg-slate-800']">
+            <Cpu :size="16" />
+            <span class="text-sm font-medium">脚本</span>
+          </button>
         </div>
 
         <div class="ml-auto flex items-center space-x-3">
@@ -65,6 +78,7 @@
       <div class="flex-1 min-h-0 bg-black/20">
         <TerminalView v-show="activeTab === 'terminal'" :active-tab="activeTab" />
         <FileBrowser v-show="activeTab === 'files'" :active-tab="activeTab" />
+        <OpsView v-if="activeTab === 'ops'" />
       </div>
 
       <!-- Floating AI Chatbox -->

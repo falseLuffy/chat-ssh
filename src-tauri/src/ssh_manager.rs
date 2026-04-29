@@ -163,6 +163,31 @@ impl SshSession {
         session.set_blocking(blocking);
     }
 
+    pub fn execute_command(&self, command: &str) -> Result<String, String> {
+        let session = self.session.lock().unwrap();
+        session.set_blocking(true);
+        let mut channel = session.channel_session().map_err(|e| e.to_string())?;
+        
+        // Execute the command
+        channel.exec(command).map_err(|e| e.to_string())?;
+        
+        let mut output = String::new();
+        channel.read_to_string(&mut output).map_err(|e| e.to_string())?;
+        
+        // Try to read stderr as well, optionally
+        let mut stderr = String::new();
+        channel.stderr().read_to_string(&mut stderr).unwrap_or(0);
+        
+        if !stderr.is_empty() {
+            output.push_str("\n--- STDERR ---\n");
+            output.push_str(&stderr);
+        }
+
+        channel.wait_close().map_err(|e| e.to_string())?;
+        session.set_blocking(false);
+        Ok(output)
+    }
+
     pub fn get_session(&self) -> &Mutex<Session> {
         &self.session
     }

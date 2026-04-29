@@ -4,10 +4,12 @@
   import { invoke } from '@tauri-apps/api/core';
   import { useSettingsStore } from '../stores/settings';
   import { useKnowledgeStore } from '../stores/knowledge';
+  import { useUIStore } from '../stores/ui';
   import { Sparkles, Play, ShieldAlert, Loader2, Copy, AlertTriangle, MessageSquare, Minimize2, Maximize2, User, CheckCircle, BookOpen, Star, BookMarked } from 'lucide-vue-next';
 
   const settingsStore = useSettingsStore();
   const knowledgeStore = useKnowledgeStore();
+  const ui = useUIStore();
   const md = new MarkdownIt({
     html: false,
     linkify: true,
@@ -122,11 +124,11 @@
       if (result.success) {
         saveToKBSuccess.value = true;
       } else {
-        alert(result.message);
+        ui.showToast(result.message, 'warning');
       }
     } catch (e) {
       console.error(e);
-      alert('保存失败，请查看控制台错误信息');
+      ui.showToast('保存失败，请查看控制台错误信息', 'error');
     } finally {
       isSavingToKB.value = false;
     }

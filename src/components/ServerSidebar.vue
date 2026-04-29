@@ -1,15 +1,16 @@
 <script setup lang="ts">
   import { ref } from 'vue';
   import { invoke } from '@tauri-apps/api/core';
-  import { open, message } from '@tauri-apps/plugin-dialog';
-  import { Plus, Server as ServerIcon, Globe, MoreVertical, FileUp, FileDown, LogOut, Edit2, Trash2 } from 'lucide-vue-next';
+  import { open, save } from '@tauri-apps/plugin-dialog';
+  import { Plus, Server as ServerIcon, Globe, MoreVertical, FileUp, FileDown, LogOut, Edit2, Trash2, Copy } from 'lucide-vue-next';
   import { useServerStore, type Server } from '../stores/server';
+  import { useUIStore } from '../stores/ui';
   import AddServerModal from './AddServerModal.vue';
   import PasswordPromptModal from './PasswordPromptModal.vue';
-  import { save } from '@tauri-apps/plugin-dialog';
   import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 
   const serverStore = useServerStore();
+  const ui = useUIStore();
   const showAddModal = ref(false);
   const showPasswordRetry = ref(false);
   const editingServer = ref<Server | null>(null);
@@ -52,7 +53,7 @@
     showContextMenu.value = false;
     try {
       if (serverStore.servers.length === 0) {
-        await message('没有可导出的服务器配置', { title: '导出提示', kind: 'warning' });
+        ui.showToast('没有可导出的服务器配置', 'warning');
         return;
       }
 
@@ -73,11 +74,11 @@
         }));
 
         await writeTextFile(filePath, JSON.stringify(exportData, null, 2));
-        await message('服务器配置已导出成功', { title: '导出成功', kind: 'info' });
+        ui.showToast('服务器配置已导出成功', 'success');
       }
     } catch (e) {
       console.error('Export failed:', e);
-      await message(String(e), { title: '导出失败', kind: 'error' });
+      ui.showToast('导出失败: ' + String(e), 'error');
     }
   };
 
@@ -109,11 +110,11 @@
           });
           count++;
         }
-        await message(`成功从备份导入 ${count} 个服务器配置`, { title: '导入成功', kind: 'info' });
+        ui.showToast(`成功从备份导入 ${count} 个服务器配置`, 'success');
       }
     } catch (e) {
       console.error('Import failed:', e);
-      await message('导入失败: ' + String(e), { title: '导入失败', kind: 'error' });
+      ui.showToast('导入失败: ' + String(e), 'error');
     }
   };
 
@@ -143,14 +144,11 @@
           if (session.password) passCount++;
         }
 
-        await message(`成功导入 ${count} 个会话${passCount > 0 ? `（其中 ${passCount} 个密码已自动还原）` : ''}`, {
-          title: '导入成功',
-          kind: 'info'
-        });
+        ui.showToast(`成功导入 ${count} 个会话${passCount > 0 ? `（其中 ${passCount} 个密码已自动还原）` : ''}`, 'success');
       }
     } catch (e) {
       console.error('Import failed:', e);
-      await message(String(e), { title: '导入失败', kind: 'error' });
+      ui.showToast('导入失败: ' + String(e), 'error');
     }
   };
 
@@ -189,10 +187,7 @@
         showPasswordRetry.value = true;
       } else {
         // Show normal error to user
-        await message(errorMsg, {
-          title: '连接失败',
-          kind: 'error',
-        });
+        ui.showToast('连接失败: ' + errorMsg, 'error');
       }
     }
   }
@@ -236,6 +231,19 @@
   const deleteServer = (event: Event, id: number) => {
     event.stopPropagation();
     serverStore.deleteServer(id);
+    activeMenuId.value = null;
+    showContextMenu.value = false;
+  };
+
+  const duplicateServer = async (event: Event, id: number) => {
+    event.stopPropagation();
+    try {
+      await serverStore.duplicateServer(id);
+      ui.showToast('服务器已成功复制', 'success');
+    } catch (e) {
+      console.error('Failed to duplicate server:', e);
+      ui.showToast('复制失败: ' + String(e), 'error');
+    }
     activeMenuId.value = null;
     showContextMenu.value = false;
   };
@@ -333,6 +341,10 @@
             class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 transition-colors flex items-center space-x-2">
             <span>编辑配置</span>
           </button>
+          <button @click="duplicateServer($event, server.id)"
+            class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800 transition-colors flex items-center space-x-2">
+            <span>复制服务器</span>
+          </button>
           <button @click="deleteServer($event, server.id)"
             class="w-full text-left px-3 py-2 text-xs hover:bg-red-500/20 text-red-400 transition-colors flex items-center space-x-2">
             <span>删除服务器</span>
@@ -379,6 +391,10 @@
           <button @click="openEditModal($event, contextMenuServer)" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
             <Edit2 :size="14" class="group-hover/item:scale-110 transition-transform" /> 
             <span class="group-hover/item:translate-x-1 transition-transform">编辑配置</span>
+          </button>
+          <button @click="duplicateServer($event, contextMenuServer.id)" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
+            <Copy :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <span class="group-hover/item:translate-x-1 transition-transform">复制服务器</span>
           </button>
 
           <div class="h-px bg-slate-700/50 my-1"></div>
