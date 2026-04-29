@@ -265,6 +265,75 @@ async fn execute_remote_command(
     }
 }
 
+#[tauri::command]
+async fn get_server_sys_info(
+    server_name: &str,
+    state: State<'_, AppState>
+) -> Result<ssh_manager::SysInfo, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(server_name) {
+        session.get_sys_info()
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_docker_containers(
+    serverName: &str,
+    state: State<'_, AppState>
+) -> Result<Vec<ssh_manager::DockerContainer>, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(serverName) {
+        session.list_docker_containers()
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn manage_docker_container(
+    serverName: &str,
+    containerId: &str,
+    action: &str,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(serverName) {
+        session.control_docker_container(containerId, action)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_system_services(
+    serverName: &str,
+    state: State<'_, AppState>
+) -> Result<Vec<ssh_manager::SystemService>, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(serverName) {
+        session.list_system_services()
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn manage_system_service(
+    serverName: &str,
+    serviceName: &str,
+    action: &str,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(serverName) {
+        session.manage_system_service(serviceName, action)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -335,7 +404,12 @@ pub fn run() {
             download_remote_file,
             execute_script,
             analyze_script_with_ai,
-            execute_remote_command
+            execute_remote_command,
+            get_server_sys_info,
+            get_docker_containers,
+            manage_docker_container,
+            get_system_services,
+            manage_system_service
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

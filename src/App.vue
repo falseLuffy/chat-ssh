@@ -13,7 +13,8 @@
   import ToastContainer from './components/ui/ToastContainer.vue';
   import ConfirmDialog from './components/ui/ConfirmDialog.vue';
   import ConflictModal from './components/ui/ConflictModal.vue';
-  import { Terminal, Shield, Settings as SettingsIcon, Server, Cpu } from 'lucide-vue-next';
+  import ServerManagement from './components/ServerManagement.vue';
+  import { Terminal, Shield, Settings as SettingsIcon, Server, Cpu, LayoutDashboard } from 'lucide-vue-next';
 
   const settingsStore = useSettingsStore();
   const serverStore = useServerStore();
@@ -53,6 +54,11 @@
             <Terminal :size="16" />
             <span class="text-sm font-medium">终端</span>
           </button>
+          <button @click="activeTab = 'management'"
+            :class="['flex items-center space-x-2 px-3 py-1 rounded-md transition-all', activeTab === 'management' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'hover:bg-slate-800']">
+            <LayoutDashboard :size="16" />
+            <span class="text-sm font-medium">运维</span>
+          </button>
           <button @click="activeTab = 'files'"
             :class="['flex items-center space-x-2 px-3 py-1 rounded-md transition-all', activeTab === 'files' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'hover:bg-slate-800']">
             <Server :size="16" />
@@ -79,7 +85,8 @@
       <!-- View Area -->
       <div class="flex-1 min-h-0 bg-black/20">
         <TerminalView v-show="activeTab === 'terminal'" :active-tab="activeTab" />
-        <FileBrowser v-show="activeTab === 'files'" :active-tab="activeTab" />
+        <ServerManagement v-if="activeTab === 'management'" />
+        <FileBrowser v-if="activeTab === 'files'" :active-tab="activeTab" />
         <OpsView v-if="activeTab === 'ops'" />
       </div>
 

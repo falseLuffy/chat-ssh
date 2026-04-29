@@ -12,6 +12,62 @@ pub struct RemoteFile {
     pub modified: u64,
 }
 
+#[derive(serde::Serialize)]
+pub struct SysInfo {
+    pub cpu: CpuInfo,
+    pub memory: MemInfo,
+    pub disks: Vec<DiskInfo>,
+    pub uptime: String,
+    pub hostname: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct CpuInfo {
+    pub usage: f64,
+}
+
+#[derive(serde::Serialize)]
+pub struct MemInfo {
+    pub total: u64,
+    pub used: u64,
+    pub free: u64,
+}
+
+#[derive(serde::Serialize)]
+pub struct DiskInfo {
+    pub mount: String,
+    pub total: u64,
+    pub used: u64,
+    pub percent: u32,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct DockerContainer {
+    #[serde(rename = "ID")]
+    pub id: String,
+    #[serde(rename = "Names")]
+    pub names: String,
+    #[serde(rename = "Image")]
+    pub image: String,
+    #[serde(rename = "Status")]
+    pub status: String,
+    #[serde(rename = "State")]
+    pub state: String,
+    #[serde(rename = "Ports")]
+    pub ports: String,
+    #[serde(rename = "Names")]
+    pub names_alt: Option<String>, // Some versions might have different casing
+}
+
+#[derive(serde::Serialize)]
+pub struct SystemService {
+    pub name: String,
+    pub load: String,
+    pub active: String,
+    pub sub: String,
+    pub description: String,
+}
+
 pub struct SshSession {
     session: Mutex<Session>,
 }
@@ -193,6 +249,126 @@ impl SshSession {
         channel.wait_close().map_err(|e| e.to_string())?;
         session.set_blocking(false);
         Ok(output)
+    }
+
+    pub fn get_sys_info(&self) -> Result<SysInfo, String> {
+        // Execute multiple commands to get all info
+        // 1. Hostname & Uptime
+        // 2. CPU Load (1min)
+        // 3. Memory info (bytes)
+        // 4. Disk info (bytes)
+        let cmd = "hostname; uptime -p; cat /proc/loadavg; free -b; df -b /";
+        let raw_output = self.execute_command(cmd)?;
+        let lines: Vec<&str> = raw_output.lines().collect();
+
+        if lines.len() < 5 {
+            return Err("Failed to get enough system info lines".to_string());
+        }
+
+        let hostname = lines[0].to_string();
+        let uptime = lines[1].to_string();
+        
+        // Parse CPU (e.g. 0.05 0.03 0.01 1/123 4567)
+        let load_parts: Vec<&str> = lines[2].split_whitespace().collect();
+        let load_1min = load_parts.get(0).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+        
+        // Parse Memory (e.g. Mem: 16453775360 4537753600 11916021760 ...)
+        let mut mem_total = 0;
+        let mut mem_used = 0;
+        let mut mem_free = 0;
+        for line in &lines {
+            if line.starts_with("Mem:") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                mem_total = parts.get(1).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+                mem_used = parts.get(2).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+                mem_free = parts.get(3).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+                break;
+            }
+        }
+
+        // Parse Disk
+        let mut disks = Vec::new();
+        for line in &lines {
+            if line.starts_with("/") || line.contains(" /") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 6 {
+                    let total = parts[1].parse::<u64>().unwrap_or(0);
+                    let used = parts[2].parse::<u64>().unwrap_or(0);
+                    let percent_str = parts[4].replace("%", "");
+                    let percent = percent_str.parse::<u32>().unwrap_or(0);
+                    let mount = parts[5].to_string();
+                    disks.push(DiskInfo { mount, total, used, percent });
+                }
+            }
+        }
+
+        Ok(SysInfo {
+            hostname,
+            uptime,
+            cpu: CpuInfo { usage: load_1min },
+            memory: MemInfo { total: mem_total, used: mem_used, free: mem_free },
+            disks,
+        })
+    }
+
+    pub fn list_docker_containers(&self) -> Result<Vec<DockerContainer>, String> {
+        let cmd = "docker ps -a --format '{{json .}}'";
+        let output = self.execute_command(cmd)?;
+        let mut containers = Vec::new();
+        for line in output.lines() {
+            if line.trim().is_empty() || line.starts_with("--- STDERR") {
+                continue;
+            }
+            if let Ok(container) = serde_json::from_str::<DockerContainer>(line) {
+                containers.push(container);
+            }
+        }
+        Ok(containers)
+    }
+
+    pub fn control_docker_container(&self, container_id: &str, action: &str) -> Result<(), String> {
+        let valid_actions = ["start", "stop", "restart", "pause", "unpause", "rm"];
+        if !valid_actions.contains(&action) {
+            return Err("Invalid docker action".to_string());
+        }
+        let cmd = format!("docker {} {}", action, container_id);
+        self.execute_command(&cmd)?;
+        Ok(())
+    }
+
+    pub fn list_system_services(&self) -> Result<Vec<SystemService>, String> {
+        // systemctl list-units --type=service --all --no-pager --no-legend
+        // Output format: UNIT LOAD ACTIVE SUB DESCRIPTION
+        let cmd = "systemctl list-units --type=service --all --no-pager --no-legend";
+        let output = self.execute_command(cmd)?;
+        let mut services = Vec::new();
+        for line in output.lines() {
+            if line.trim().is_empty() || line.starts_with("--- STDERR") {
+                continue;
+            }
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 {
+                let name = parts[0].to_string();
+                let load = parts[1].to_string();
+                let active = parts[2].to_string();
+                let sub = parts[3].to_string();
+                let description = parts[4..].join(" ");
+                services.push(SystemService { name, load, active, sub, description });
+            }
+        }
+        Ok(services)
+    }
+
+    pub fn manage_system_service(&self, service_name: &str, action: &str) -> Result<(), String> {
+        let valid_actions = ["start", "stop", "restart", "enable", "disable"];
+        if !valid_actions.contains(&action) {
+            return Err("Invalid service action".to_string());
+        }
+        let cmd = format!("sudo systemctl {} {}", action, service_name);
+        // Note: This might require sudo without password or handled via pty if password needed
+        // For now we assume standard cloud user or sudoers config
+        self.execute_command(&cmd)?;
+        Ok(())
     }
 
     pub fn get_session(&self) -> &Mutex<Session> {
