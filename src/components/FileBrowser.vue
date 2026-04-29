@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, defineProps } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted, watch, defineProps } from 'vue';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { readFile, writeFile } from '@tauri-apps/plugin-fs';
+import { readFile, writeFile, stat, readDir } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { useServerStore } from '../stores/server';
 import { useUIStore } from '../stores/ui';
-import { File, Folder, Upload, Download, Trash2, RefreshCw, Loader2, ChevronLeft, Home, HardDrive, ShieldAlert, LayoutGrid, List, Plus, Copy } from 'lucide-vue-next';
+import { File, Folder, Upload, Download, Trash2, RefreshCw, Loader2, ChevronLeft, Home, HardDrive, ShieldAlert, LayoutGrid, List, Plus, Copy, ChevronDown, Terminal } from 'lucide-vue-next';
 import InputModal from './InputModal.vue';
 
 const serverStore = useServerStore();
@@ -19,10 +20,79 @@ const errorMessage = ref('');
 const viewMode = ref<'grid' | 'list'>((localStorage.getItem('ssh_view_mode') as 'grid' | 'list') || 'list');
 const isDragging = ref(false);
 
+// Conflict resolution state
+const globalConflictAction = ref<any>(null);
+const applyConflictToAll = ref(false);
+
+const resetConflictState = () => {
+  globalConflictAction.value = null;
+  applyConflictToAll.value = false;
+};
+
+// Operation Log
+type LogLevel = 'success' | 'error' | 'info';
+interface LogEntry {
+  id: number;
+  time: string;
+  level: LogLevel;
+  message: string;
+}
+const logs = ref<LogEntry[]>([]);
+let logIdCounter = 0;
+const logPanelOpen = ref(true);
+const logContainer = ref<HTMLElement | null>(null);
+
+const addLog = (message: string, level: LogLevel = 'info') => {
+  const now = new Date();
+  const time = now.toTimeString().slice(0, 8);
+  logs.value.push({ id: ++logIdCounter, time, level, message });
+  // Keep last 200 entries
+  if (logs.value.length > 200) logs.value.splice(0, logs.value.length - 200);
+  nextTick(() => {
+    if (logContainer.value) {
+      logContainer.value.scrollTop = logContainer.value.scrollHeight;
+    }
+  });
+};
+
+const clearLogs = () => { logs.value = []; };
+
 // Persist view mode changes
 watch(viewMode, (newMode) => {
   localStorage.setItem('ssh_view_mode', newMode);
 });
+
+// Selection State
+const selectedFiles = ref<Set<string>>(new Set());
+
+const isSelected = (name: string) => selectedFiles.value.has(name);
+
+const toggleSelect = (name: string, multi: boolean) => {
+  if (multi) {
+    const next = new Set(selectedFiles.value);
+    next.has(name) ? next.delete(name) : next.add(name);
+    selectedFiles.value = next;
+  } else {
+    selectedFiles.value = new Set([name]);
+  }
+};
+
+const selectAll = () => {
+  selectedFiles.value = new Set(files.value.map((f: any) => f.name));
+};
+
+const clearSelection = () => {
+  selectedFiles.value = new Set();
+};
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    selectAll();
+  } else if (e.key === 'Escape') {
+    clearSelection();
+  }
+};
 
 // Context Menu State
 const showContextMenu = ref(false);
@@ -68,6 +138,7 @@ const navigateTo = (path: string) => {
   if (normalizedPath === '') normalizedPath = '/';
   if (!normalizedPath.startsWith('/')) normalizedPath = '/' + normalizedPath;
   currentPath.value = normalizedPath;
+  clearSelection();
   loadFiles();
 };
 
@@ -94,26 +165,167 @@ const formatSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const uploadFile = async (fileName: string, content: Uint8Array) => {
-  if (!serverStore.activeServer) return;
-  
-  isUploading.value = true;
+// Check if a remote path exists
+const checkRemoteExists = async (remotePath: string): Promise<boolean> => {
+  if (!serverStore.activeServer) return false;
   try {
-    const remotePath = currentPath.value === '/' 
-      ? `/${fileName}` 
-      : `${currentPath.value}/${fileName}`;
-    
+    const result = await invoke<string>('execute_remote_command', {
+      server_name: serverStore.activeServer.name,
+      command: `[ -e "${remotePath}" ] && echo "exists"`
+    });
+    return result.trim() === 'exists';
+  } catch (e) {
+    return false;
+  }
+};
+
+// Handle naming conflicts
+const resolvePathConflict = async (remotePath: string): Promise<{ finalPath: string, skip: boolean }> => {
+  if (!await checkRemoteExists(remotePath)) {
+    return { finalPath: remotePath, skip: false };
+  }
+
+  const fileName = remotePath.split('/').pop() || 'file';
+  
+  // Use global choice if "Apply to all" was checked
+  let action = globalConflictAction.value;
+  
+  if (!applyConflictToAll.value || !action) {
+    const result = await ui.showConflict({ fileName });
+    action = result.action;
+    if (result.applyToAll) {
+      applyConflictToAll.value = true;
+      globalConflictAction.value = action;
+    }
+  }
+
+  if (action === 'skip') {
+    return { finalPath: remotePath, skip: true };
+  }
+
+  if (action === 'rename') {
+    const extIdx = remotePath.lastIndexOf('.');
+    const base = extIdx > 0 ? remotePath.slice(0, extIdx) : remotePath;
+    const ext = extIdx > 0 ? remotePath.slice(extIdx) : '';
+    let counter = 1;
+    let newPath = `${base} (${counter})${ext}`;
+    while (await checkRemoteExists(newPath)) {
+      counter++;
+      newPath = `${base} (${counter})${ext}`;
+    }
+    return { finalPath: newPath, skip: false };
+  }
+
+  // Overwrite is default behavior (just use the same path)
+  return { finalPath: remotePath, skip: false };
+};
+
+// Low-level: upload one file to an explicit remote path, no list refresh
+const uploadSingleFile = async (content: Uint8Array, remoteFullPath: string): Promise<boolean> => {
+  if (!serverStore.activeServer) return false;
+  try {
     await invoke('upload_to_server', {
       serverName: serverStore.activeServer.name,
-      remotePath,
-      fileContent: Array.from(content), 
+      remotePath: remoteFullPath,
+      fileContent: Array.from(content),
     });
-    
-    await loadFiles();
+    addLog(`✓ 上传成功: ${remoteFullPath}`, 'success');
+    return true;
   } catch (error) {
-    console.error('上传失败:', error);
-  } finally {
+    addLog(`✗ 上传失败: ${remoteFullPath} — ${String(error)}`, 'error');
+    return false;
+  }
+};
+
+// Upload a single file into currentPath, then refresh list
+const uploadFile = async (fileName: string, content: Uint8Array) => {
+  if (!serverStore.activeServer) return;
+  isUploading.value = true;
+  resetConflictState(); // New task starts
+  
+  const initialRemotePath = currentPath.value === '/'
+    ? `/${fileName}`
+    : `${currentPath.value}/${fileName}`;
+  
+  const { finalPath, skip } = await resolvePathConflict(initialRemotePath);
+  
+  if (skip) {
+    addLog(`跳过上传: ${fileName}`, 'info');
     isUploading.value = false;
+    return;
+  }
+
+  addLog(`上传中: ${fileName} (${formatSize(content.length)}) → ${currentPath.value}`, 'info');
+  const ok = await uploadSingleFile(content, finalPath);
+  if (ok) {
+    ui.showToast(`✓ 上传成功: ${fileName}`, 'success');
+    await loadFiles();
+  } else {
+    ui.showToast(`上传失败: ${fileName}`, 'error', 5000);
+  }
+  isUploading.value = false;
+};
+
+// Join local path with an entry name, respecting OS separator
+const joinLocalPath = (base: string, name: string): string => {
+  const sep = base.includes('\\') ? '\\' : '/';
+  return base.endsWith(sep) ? base + name : base + sep + name;
+};
+
+// Recursively upload a local directory tree to a remote base path
+const uploadDirectoryRecursive = async (
+  localPath: string,
+  remotePath: string,
+  counters: { ok: number; fail: number }
+): Promise<void> => {
+  if (!serverStore.activeServer) return;
+
+  // Create remote directory
+  try {
+    await invoke('execute_remote_command', {
+      serverName: serverStore.activeServer.name,
+      command: `mkdir -p "${remotePath}"`
+    });
+    addLog(`📁 创建目录: ${remotePath}`, 'info');
+  } catch (e) {
+    addLog(`✗ 创建目录失败: ${remotePath} — ${String(e)}`, 'error');
+    counters.fail++;
+    return;
+  }
+
+  let entries: any[];
+  try {
+    entries = await readDir(localPath);
+  } catch (e) {
+    addLog(`✗ 读取目录失败: ${localPath} — ${String(e)}`, 'error');
+    counters.fail++;
+    return;
+  }
+
+  for (const entry of entries) {
+    if (!entry.name) continue;
+    const localEntry = joinLocalPath(localPath, entry.name);
+    const remoteEntry = `${remotePath}/${entry.name}`;
+
+    if (entry.isDirectory) {
+      await uploadDirectoryRecursive(localEntry, remoteEntry, counters);
+    } else if (entry.isFile) {
+      const { finalPath, skip } = await resolvePathConflict(remoteEntry);
+      if (skip) {
+        addLog(`跳过文件: ${entry.name}`, 'info');
+        continue;
+      }
+      
+      addLog(`上传中: ${entry.name} → ${finalPath}`, 'info');
+      try {
+        const content = await readFile(localEntry);
+        const ok = await uploadSingleFile(content, finalPath);
+        ok ? counters.ok++ : counters.fail++;
+      } catch (e) {
+        addLog(`✗ 读取文件失败: ${localEntry} — ${String(e)}`, 'error');
+        counters.fail++;
+      }
+    }
   }
 };
 
@@ -138,15 +350,87 @@ const handleUpload = async () => {
 
 const handleDrop = async (e: DragEvent) => {
   isDragging.value = false;
-  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') return;
-  
-  const droppedFiles = e.dataTransfer?.files;
-  if (droppedFiles && droppedFiles.length > 0) {
-    for (let i = 0; i < droppedFiles.length; i++) {
-      const file = droppedFiles[i];
-      const buffer = await file.arrayBuffer();
-      await uploadFile(file.name, new Uint8Array(buffer));
-    }
+  // Drag-drop in Tauri webview uses system paths via tauri://drag-drop event
+  // This handler is kept for visual feedback only; actual upload is in the unlisten below
+};
+
+// Tauri drag-drop listener (provides file paths instead of File objects)
+let unlistenDragDrop: (() => void) | null = null;
+
+const setupDragDropListener = async () => {
+  if (unlistenDragDrop) return;
+  try {
+    const webview = getCurrentWebview();
+    unlistenDragDrop = await webview.onDragDropEvent(async (event) => {
+      if (event.payload.type === 'over') {
+        isDragging.value = true;
+      } else if (event.payload.type === 'leave' || event.payload.type === 'cancelled') {
+        isDragging.value = false;
+      } else if (event.payload.type === 'drop') {
+        isDragging.value = false;
+        if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') return;
+        const paths: string[] = event.payload.paths ?? [];
+        let totalOk = 0;
+        let totalFail = 0;
+        isUploading.value = true;
+        resetConflictState(); // Start fresh for new drop
+        
+        for (const filePath of paths) {
+          try {
+            const fileStat = await stat(filePath);
+            if (fileStat.isDirectory) {
+              const dirName = filePath.replace(/\\/g, '/').split('/').pop() || 'upload';
+              const remoteDirPath = currentPath.value === '/' 
+                ? `/${dirName}` 
+                : `${currentPath.value}/${dirName}`;
+              
+              const { finalPath, skip } = await resolvePathConflict(remoteDirPath);
+              if (skip) {
+                addLog(`跳过目录: ${dirName}`, 'info');
+                continue;
+              }
+
+              addLog(`📁 开始上传目录: ${dirName} → ${finalPath}`, 'info');
+              const counters = { ok: 0, fail: 0 };
+              await uploadDirectoryRecursive(filePath, finalPath, counters);
+              totalOk += counters.ok;
+              totalFail += counters.fail;
+              addLog(`📁 目录 "${dirName}" 完成: 成功 ${counters.ok} 个，失败 ${counters.fail} 个`, counters.fail > 0 ? 'error' : 'success');
+            } else if (fileStat.isFile) {
+              const fileName = filePath.replace(/\\/g, '/').split('/').pop() || 'uploaded_file';
+              const initialRemotePath = currentPath.value === '/' 
+                ? `/${fileName}` 
+                : `${currentPath.value}/${fileName}`;
+              
+              const { finalPath, skip } = await resolvePathConflict(initialRemotePath);
+              if (skip) {
+                addLog(`跳过文件: ${fileName}`, 'info');
+                continue;
+              }
+
+              const content = await readFile(filePath);
+              addLog(`上传中: ${fileName} (${formatSize(content.length)}) → ${finalPath}`, 'info');
+              const ok = await uploadSingleFile(content, finalPath);
+              ok ? totalOk++ : totalFail++;
+              if (ok) ui.showToast(`✓ 上传成功: ${fileName}`, 'success');
+            }
+          } catch (err) {
+            console.error('拖拽失败:', err);
+            ui.showToast(`拖拽上传失败: ${String(err)}`, 'error', 5000);
+            addLog(`✗ 拖拽失败: ${filePath} — ${String(err)}`, 'error');
+            totalFail++;
+          }
+        }
+        
+        isUploading.value = false;
+        if (totalOk > 0 || totalFail > 0) {
+          addLog(`— 拖拽上传完成: 成功 ${totalOk} 个文件，失败 ${totalFail} 个`, totalFail > 0 ? 'error' : 'success');
+        }
+        await loadFiles();
+      }
+    });
+  } catch (err) {
+    console.error('无法注册拖拽监听:', err);
   }
 };
 
@@ -185,20 +469,25 @@ const handleDelete = async (file: any) => {
   const confirm = await ui.showConfirm({ title: '删除项目', message: `确定要删除 ${file.name} 吗？`, type: 'danger' });
   if (!confirm) return;
 
+  const remotePath = currentPath.value.endsWith('/') 
+    ? `${currentPath.value}${file.name}` 
+    : `${currentPath.value}/${file.name}`;
+
+  addLog(`删除中: ${remotePath}${file.is_dir ? ' (文件夹)' : ''}`, 'info');
   try {
-    const remotePath = currentPath.value.endsWith('/') 
-      ? `${currentPath.value}${file.name}` 
-      : `${currentPath.value}/${file.name}`;
-    
     await invoke('delete_remote_file', {
       serverName: serverStore.activeServer.name,
       path: remotePath,
       isDir: file.is_dir,
     });
     
+    addLog(`✓ 已删除: ${remotePath}`, 'success');
+    ui.showToast(`✓ 已删除: ${file.name}`, 'success');
     await loadFiles();
   } catch (error) {
     console.error('删除失败:', error);
+    addLog(`✗ 删除失败: ${remotePath} — ${String(error)}`, 'error');
+    ui.showToast(`删除失败: ${String(error)}`, 'error', 5000);
   }
 };
 
@@ -256,21 +545,23 @@ const handleModalConfirm = async (value: string) => {
       const oldPath = currentPath.value === '/' ? `/${file.name}` : `${currentPath.value}/${file.name}`;
       const newPath = currentPath.value === '/' ? `/${value}` : `${currentPath.value}/${value}`;
       
-      // We'll use a generic shell command for mv for now or add a rename backend command
       await invoke('execute_remote_command', {
         serverName: serverStore.activeServer.name,
         command: `mv "${oldPath}" "${newPath}"`
       });
+      ui.showToast(`✓ 已重命名为: ${value}`, 'success');
     } else {
       const newDirPath = currentPath.value === '/' ? `/${value}` : `${currentPath.value}/${value}`;
       await invoke('execute_remote_command', {
         serverName: serverStore.activeServer.name,
         command: `mkdir -p "${newDirPath}"`
       });
+      ui.showToast(`✓ 已创建文件夹: ${value}`, 'success');
     }
     await loadFiles();
   } catch (error) {
     console.error('操作失败:', error);
+    ui.showToast(`操作失败: ${String(error)}`, 'error', 5000);
   } finally {
     showInputModal.value = false;
   }
@@ -278,7 +569,19 @@ const handleModalConfirm = async (value: string) => {
 
 const props = defineProps<{ activeTab: string }>();
 
-onMounted(loadFiles);
+onMounted(() => {
+  loadFiles();
+  setupDragDropListener();
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  if (unlistenDragDrop) {
+    unlistenDragDrop();
+    unlistenDragDrop = null;
+  }
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 watch(() => props.activeTab, async (newTab) => {
   if (newTab === 'files') {
@@ -365,7 +668,8 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
       @dragover.prevent="isDragging = true"
       @dragleave.prevent="isDragging = false"
       @drop.prevent="handleDrop"
-      :class="['flex-1 overflow-y-auto p-4 custom-scrollbar relative transition-colors', isDragging ? 'bg-blue-600/10' : '']"
+      @click.self="clearSelection"
+      :class="['flex-1 overflow-y-auto p-4 custom-scrollbar relative transition-colors select-none', isDragging ? 'bg-blue-600/10' : '']"
     >
       <!-- Drag Overlay -->
       <div v-if="isDragging" class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
@@ -405,9 +709,17 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
         <div 
           v-for="file in files" 
           :key="file.name"
+          @click.exact="toggleSelect(file.name, false)"
+          @click.ctrl="toggleSelect(file.name, true)"
+          @click.meta="toggleSelect(file.name, true)"
           @dblclick="file.is_dir ? handleFolderClick(file.name) : null"
           @contextmenu.stop="handleContextMenu($event, file)"
-          class="group flex flex-col p-4 bg-[#1e293b]/40 border border-slate-700/50 rounded-2xl hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer relative"
+          :class="[
+            'group flex flex-col p-4 border rounded-2xl transition-all cursor-pointer relative',
+            isSelected(file.name)
+              ? 'bg-blue-600/20 border-blue-500/70 ring-1 ring-blue-500/40'
+              : 'bg-[#1e293b]/40 border-slate-700/50 hover:border-blue-500/50 hover:bg-blue-500/5'
+          ]"
         >
           <div class="flex items-start justify-between mb-3">
             <div :class="['p-3 rounded-xl bg-slate-800 mr-3 transition-colors shadow-sm', file.is_dir ? 'text-amber-400 group-hover:bg-amber-400/10' : 'text-blue-400 group-hover:bg-blue-400/10']">
@@ -450,9 +762,17 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
         <div 
           v-for="file in files" 
           :key="file.name"
+          @click.exact="toggleSelect(file.name, false)"
+          @click.ctrl="toggleSelect(file.name, true)"
+          @click.meta="toggleSelect(file.name, true)"
           @dblclick="file.is_dir ? handleFolderClick(file.name) : null"
           @contextmenu.stop="handleContextMenu($event, file)"
-          class="flex items-center px-4 py-3 hover:bg-slate-800/50 border-b border-slate-800/30 group transition-colors cursor-pointer"
+          :class="[
+            'flex items-center px-4 py-3 border-b border-slate-800/30 group transition-colors cursor-pointer',
+            isSelected(file.name)
+              ? 'bg-blue-600/20'
+              : 'hover:bg-slate-800/50'
+          ]"
         >
           <div class="flex-1 flex items-center min-w-0">
             <div :class="['mr-3', file.is_dir ? 'text-amber-400' : 'text-blue-400']">
@@ -468,12 +788,65 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
     </div>
     
     <!-- Status Bar -->
-    <div v-if="serverStore.activeServer && serverStore.activeServer.status === 'online'" class="h-8 border-t border-slate-800 bg-slate-900/80 px-4 flex items-center justify-between">
+    <div v-if="serverStore.activeServer && serverStore.activeServer.status === 'online'" class="h-8 border-t border-slate-800 bg-slate-900/80 px-4 flex items-center justify-between flex-shrink-0">
       <div class="text-[10px] text-slate-500 flex items-center">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
         已连接: {{ serverStore.activeServer.name }}
       </div>
-      <div class="text-[10px] text-slate-500">{{ files.length }} 个项目</div>
+      <div class="text-[10px] flex items-center space-x-3">
+        <span v-if="selectedFiles.size > 0" class="text-blue-400 font-medium">
+          已选 {{ selectedFiles.size }} 个
+        </span>
+        <span class="text-slate-500">{{ files.length }} 个项目</span>
+      </div>
+    </div>
+
+    <!-- Operation Log Panel -->
+    <div class="flex-shrink-0 border-t border-slate-800 bg-[#0a0f1a]">
+      <!-- Log Header -->
+      <div
+        class="flex items-center justify-between px-3 py-1.5 cursor-pointer select-none hover:bg-slate-800/40 transition-colors"
+        @click="logPanelOpen = !logPanelOpen"
+      >
+        <div class="flex items-center space-x-2 text-slate-400">
+          <Terminal :size="12" />
+          <span class="text-[10px] font-bold tracking-widest uppercase">操作日志</span>
+          <span v-if="logs.length" class="text-[9px] bg-slate-700 text-slate-400 rounded px-1.5 py-0.5">{{ logs.length }}</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button
+            v-if="logs.length"
+            @click.stop="clearLogs"
+            class="text-[9px] text-slate-600 hover:text-slate-400 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-800"
+          >清空</button>
+          <ChevronDown
+            :size="12"
+            :class="['text-slate-600 transition-transform duration-200', logPanelOpen ? 'rotate-180' : '']"
+          />
+        </div>
+      </div>
+
+      <!-- Log Body -->
+      <div
+        v-show="logPanelOpen"
+        ref="logContainer"
+        class="h-28 overflow-y-auto px-3 pb-2 font-mono text-[11px] leading-5 space-y-0.5 log-scrollbar"
+      >
+        <div v-if="!logs.length" class="flex items-center justify-center h-full text-slate-700 text-[10px]">
+          暂无操作记录
+        </div>
+        <div
+          v-for="entry in logs"
+          :key="entry.id"
+          :class="[
+            'flex items-start space-x-2 py-0.5',
+            entry.level === 'success' ? 'text-emerald-400' : entry.level === 'error' ? 'text-red-400' : 'text-slate-500'
+          ]"
+        >
+          <span class="flex-shrink-0 text-slate-700">{{ entry.time }}</span>
+          <span class="break-all">{{ entry.message }}</span>
+        </div>
+      </div>
     </div>
 
     <Teleport to="body">
@@ -559,6 +932,19 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
   border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+.log-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.log-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.log-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+.log-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #334155;
 }
 </style>

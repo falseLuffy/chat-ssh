@@ -106,16 +106,23 @@ impl SshSession {
     pub fn delete_file(&self, path: &str, is_dir: bool) -> Result<(), String> {
         let session = self.session.lock().unwrap();
         session.set_blocking(true);
-        let sftp_res = session.sftp().map_err(|e| e.to_string());
-        let res = match sftp_res {
-            Ok(sftp) => {
-                if is_dir {
-                    sftp.rmdir(Path::new(path)).map_err(|e| e.to_string())
-                } else {
-                    sftp.unlink(Path::new(path)).map_err(|e| e.to_string())
-                }
+        let res = if is_dir {
+            // Use rm -rf for directories (sftp.rmdir only deletes empty dirs)
+            let mut channel = session.channel_session().map_err(|e| e.to_string())?;
+            let cmd = format!("rm -rf \"{}\" 2>&1", path);
+            channel.exec(&cmd).map_err(|e| e.to_string())?;
+            let mut output = String::new();
+            channel.read_to_string(&mut output).map_err(|e| e.to_string())?;
+            channel.wait_close().map_err(|e| e.to_string())?;
+            let exit_status = channel.exit_status().map_err(|e| e.to_string())?;
+            if exit_status != 0 {
+                Err(format!("rm -rf failed (exit {}): {}", exit_status, output.trim()))
+            } else {
+                Ok(())
             }
-            Err(e) => Err(e),
+        } else {
+            let sftp = session.sftp().map_err(|e| e.to_string())?;
+            sftp.unlink(Path::new(path)).map_err(|e| e.to_string())
         };
         session.set_blocking(false);
         res

@@ -18,27 +18,20 @@ export interface Server {
 export const useServerStore = defineStore('server', () => {
   const servers = ref<Server[]>([]);
   const isLoaded = ref(false);
+  const isInitializing = ref(false);
   const activeServerId = ref<number | null>(null);
   const activeServer = ref<Server | null>(null);
 
   const initStore = async () => {
-    if (isLoaded.value) return;
+    if (isLoaded.value || isInitializing.value) return;
+    isInitializing.value = true;
+    console.log('Initializing server store...');
     try {
       const db = await Database.load('sqlite:chat_ssh.db');
+      console.log('Database loaded successfully');
 
-      // 0. Ensure table exists (Failsafe)
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS servers (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          host TEXT NOT NULL,
-          username TEXT NOT NULL,
-          port INTEGER NOT NULL DEFAULT 22,
-          auth_type TEXT NOT NULL DEFAULT 'password',
-          auth_secret TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+      // Table creation is handled by migrations in lib.rs
+      // Manual creation here may conflict with migrations on first launch
 
       // 1. Migration from localStorage
       const savedServers = localStorage.getItem('ssh_servers');
@@ -60,6 +53,8 @@ export const useServerStore = defineStore('server', () => {
 
       // 2. Load from Database
       const result = await db.select<any[]>('SELECT * FROM servers ORDER BY created_at ASC');
+      console.log(`Loaded ${result.length} servers from database`);
+      
       servers.value = result.map(s => ({
         id: s.id,
         name: s.name,
@@ -75,6 +70,8 @@ export const useServerStore = defineStore('server', () => {
       isLoaded.value = true;
     } catch (error) {
       console.error('Failed to init server store:', error);
+    } finally {
+      isInitializing.value = false;
     }
   };
 
@@ -210,6 +207,7 @@ export const useServerStore = defineStore('server', () => {
   return {
     servers,
     isLoaded,
+    isInitializing,
     activeServerId,
     activeServer,
     initStore,

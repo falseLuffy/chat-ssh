@@ -17,6 +17,18 @@ export interface ConfirmOptions {
   type?: 'danger' | 'warning' | 'info';
 }
 
+export type ConflictAction = 'overwrite' | 'skip' | 'rename';
+
+export interface ConflictResult {
+  action: ConflictAction;
+  applyToAll: boolean;
+}
+
+export interface ConflictOptions {
+  fileName: string;
+  message?: string;
+}
+
 export const useUIStore = defineStore('ui', () => {
   const toasts = ref<Toast[]>([]);
   let toastIdCounter = 0;
@@ -62,12 +74,43 @@ export const useUIStore = defineStore('ui', () => {
     confirmState.value.resolve = null;
   };
 
+  const conflictState = ref<{
+    isOpen: boolean;
+    options: ConflictOptions;
+    resolve: ((value: ConflictResult) => void) | null;
+  }>({
+    isOpen: false,
+    options: { fileName: '' },
+    resolve: null
+  });
+
+  const showConflict = (options: ConflictOptions): Promise<ConflictResult> => {
+    return new Promise((resolve) => {
+      conflictState.value = {
+        isOpen: true,
+        options,
+        resolve
+      };
+    });
+  };
+
+  const resolveConflict = (action: ConflictAction, applyToAll: boolean) => {
+    if (conflictState.value.resolve) {
+      conflictState.value.resolve({ action, applyToAll });
+    }
+    conflictState.value.isOpen = false;
+    conflictState.value.resolve = null;
+  };
+
   return {
     toasts,
     showToast,
     removeToast,
     confirmState,
     showConfirm,
-    resolveConfirm
+    resolveConfirm,
+    conflictState,
+    showConflict,
+    resolveConflict
   };
 });

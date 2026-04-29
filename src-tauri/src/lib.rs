@@ -251,6 +251,20 @@ async fn analyze_script_with_ai(script_content: &str, api_key: &str) -> Result<d
     deepseek::analyze_script_with_ai(script_content, api_key).await
 }
 
+#[tauri::command]
+async fn execute_remote_command(
+    server_name: &str,
+    command: &str,
+    state: State<'_, AppState>
+) -> Result<String, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(server_name) {
+        session.execute_command(command)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -320,7 +334,8 @@ pub fn run() {
             delete_remote_file,
             download_remote_file,
             execute_script,
-            analyze_script_with_ai
+            analyze_script_with_ai,
+            execute_remote_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

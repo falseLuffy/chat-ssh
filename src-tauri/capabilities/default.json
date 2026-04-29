@@ -10,6 +10,12 @@
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-load",
-    "fs:default"
+    "fs:default",
+    "fs:allow-read-file",
+    "fs:allow-read-dir",
+    "fs:allow-stat",
+    "fs:scope-home-recursive",
+    "fs:scope-download-recursive",
+    "fs:scope-desktop-recursive"
   ]
 }

@@ -12,6 +12,7 @@
   import SettingsModal from './components/SettingsModal.vue';
   import ToastContainer from './components/ui/ToastContainer.vue';
   import ConfirmDialog from './components/ui/ConfirmDialog.vue';
+  import ConflictModal from './components/ui/ConflictModal.vue';
   import { Terminal, Shield, Settings as SettingsIcon, Server, Cpu } from 'lucide-vue-next';
 
   const settingsStore = useSettingsStore();
@@ -37,6 +38,7 @@
   <div class="flex h-screen w-screen bg-[#0f172a] text-slate-200 overflow-hidden font-sans">
     <ToastContainer />
     <ConfirmDialog />
+    <ConflictModal />
     <SettingsModal v-if="showSettingsModal" @close="showSettingsModal = false" />
     <!-- Sidebar -->
     <ServerSidebar class="w-64 border-r border-slate-800 bg-[#1e293b]/50 backdrop-blur-xl" />
