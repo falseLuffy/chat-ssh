@@ -335,6 +335,48 @@ async fn manage_system_service(
 }
 
 #[tauri::command]
+async fn kill_process(
+    serverName: &str,
+    pid: &str,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(serverName) {
+        session.kill_process(pid)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_firewall_rules(
+    serverName: &str,
+    state: State<'_, AppState>
+) -> Result<Vec<ssh_manager::FirewallRule>, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(serverName) {
+        session.get_firewall_rules()
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
+async fn manage_firewall_rule(
+    serverName: &str,
+    port: &str,
+    action: &str,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(serverName) {
+        session.manage_firewall_rule(port, action)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
 async fn diagnose_server_issue(
     serverName: &str,
     context: &str,
@@ -445,7 +487,10 @@ pub fn run() {
             manage_docker_container,
             get_system_services,
             manage_system_service,
-            diagnose_server_issue
+            diagnose_server_issue,
+            kill_process,
+            get_firewall_rules,
+            manage_firewall_rule
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

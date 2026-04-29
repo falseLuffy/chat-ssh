@@ -79,14 +79,15 @@ watch([containers, searchQuery], () => {
   } else {
     const q = searchQuery.value.toLowerCase();
     filteredContainers.value = containers.value.filter(c => 
-      c.Names.toLowerCase().includes(q) || 
-      c.Image.toLowerCase().includes(q) ||
-      c.ID.toLowerCase().includes(q)
+      (c.names && c.names.toLowerCase().includes(q)) || 
+      (c.image && c.image.toLowerCase().includes(q)) ||
+      (c.id && c.id.toLowerCase().includes(q))
     );
   }
 }, { immediate: true });
 
 const getStatusColor = (state: string) => {
+  if (!state) return 'bg-slate-500';
   switch (state.toLowerCase()) {
     case 'running': return 'bg-emerald-500';
     case 'exited': return 'bg-red-500';
@@ -148,44 +149,43 @@ const getStatusColor = (state: string) => {
       </div>
       
       <div v-else class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
-        <div 
-          v-for="container in filteredContainers" 
-          :key="container.ID"
-          class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 hover:border-slate-700 p-5 rounded-2xl transition-all group"
-        >
-          <!-- Card Header -->
-          <div class="flex items-start justify-between mb-4">
-            <div class="flex items-center space-x-3 min-w-0">
-              <div class="p-2.5 rounded-xl bg-slate-800 group-hover:bg-blue-500/10 transition-colors">
-                <Box :size="20" class="text-slate-400 group-hover:text-blue-400" />
+          <div v-for="container in filteredContainers" 
+            :key="container.id"
+            class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 hover:border-slate-700 p-5 rounded-2xl transition-all group"
+          >
+            <!-- Card Header -->
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center space-x-3 min-w-0">
+                <div class="p-2.5 rounded-xl bg-slate-800 group-hover:bg-blue-500/10 transition-colors">
+                  <Box :size="20" class="text-slate-400 group-hover:text-blue-400" />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-bold text-slate-200 truncate">{{ container.names }}</h3>
+                  <p class="text-[10px] font-mono text-slate-500 truncate">{{ container.id ? container.id.substring(0, 12) : '' }}</p>
+                </div>
               </div>
-              <div class="min-w-0">
-                <h3 class="font-bold text-slate-200 truncate">{{ container.Names }}</h3>
-                <p class="text-[10px] font-mono text-slate-500 truncate">{{ container.ID.substring(0, 12) }}</p>
+              <div class="flex items-center space-x-2">
+                <span 
+                  :class="['px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase', getStatusColor(container.state)]"
+                >
+                  {{ container.state }}
+                </span>
               </div>
             </div>
-            <div class="flex items-center space-x-2">
-              <span 
-                :class="['px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase', getStatusColor(container.State)]"
-              >
-                {{ container.State }}
-              </span>
-            </div>
-          </div>
 
           <!-- Info List -->
           <div class="space-y-2 mb-5">
             <div class="flex items-center justify-between text-xs">
               <span class="text-slate-500">镜像:</span>
-              <span class="text-slate-300 font-medium truncate ml-4">{{ container.Image }}</span>
+              <span class="text-slate-300 font-medium truncate ml-4">{{ container.image }}</span>
             </div>
             <div class="flex items-center justify-between text-xs">
               <span class="text-slate-500">状态:</span>
-              <span class="text-slate-300">{{ container.Status }}</span>
+              <span class="text-slate-300">{{ container.status }}</span>
             </div>
             <div class="flex items-center justify-between text-xs">
               <span class="text-slate-500">端口:</span>
-              <span class="text-slate-300 truncate ml-4">{{ container.Ports || '无' }}</span>
+              <span class="text-slate-300 truncate ml-4">{{ container.ports || '无' }}</span>
             </div>
           </div>
 
@@ -193,23 +193,23 @@ const getStatusColor = (state: string) => {
           <div class="flex items-center justify-between pt-4 border-t border-slate-800">
             <div class="flex space-x-2">
               <button 
-                v-if="container.State !== 'running'"
-                @click="handleAction(container.ID, 'start', container.Names)"
+                v-if="container.state !== 'running'"
+                @click="handleAction(container.id, 'start', container.names)"
                 class="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-all"
                 title="启动"
               >
                 <Play :size="14" />
               </button>
               <button 
-                v-if="container.State === 'running'"
-                @click="handleAction(container.ID, 'stop', container.Names)"
+                v-if="container.state === 'running'"
+                @click="handleAction(container.id, 'stop', container.names)"
                 class="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
                 title="停止"
               >
                 <Square :size="14" />
               </button>
               <button 
-                @click="handleAction(container.ID, 'restart', container.Names)"
+                @click="handleAction(container.id, 'restart', container.names)"
                 class="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white rounded-lg transition-all"
                 title="重启"
               >
@@ -219,7 +219,7 @@ const getStatusColor = (state: string) => {
             
             <div class="flex space-x-2">
               <button 
-                @click="handleAction(container.ID, 'rm', container.Names)"
+                @click="handleAction(container.id, 'rm', container.names)"
                 class="p-2 bg-slate-800 text-slate-500 hover:bg-red-600 hover:text-white rounded-lg transition-all"
                 title="删除"
               >

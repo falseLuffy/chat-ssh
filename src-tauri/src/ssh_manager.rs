@@ -3,6 +3,7 @@ use ssh2::Session;
 use std::io::prelude::*;
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::Instant;
 
 #[derive(serde::Serialize)]
 pub struct RemoteFile {
@@ -19,6 +20,32 @@ pub struct SysInfo {
     pub disks: Vec<DiskInfo>,
     pub uptime: String,
     pub hostname: String,
+    pub os_info: String,
+    pub net: NetInfo,
+    pub processes: Vec<ProcessInfo>,
+}
+
+#[derive(serde::Serialize)]
+pub struct NetInfo {
+    pub rx_speed: f64, // bytes/sec
+    pub tx_speed: f64, // bytes/sec
+}
+
+#[derive(serde::Serialize)]
+pub struct ProcessInfo {
+    pub pid: String,
+    pub user: String,
+    pub cpu: f32,
+    pub mem: f32,
+    pub command: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct FirewallRule {
+    pub action: String,
+    pub from: String,
+    pub to: String,
+    pub proto: String,
 }
 
 #[derive(serde::Serialize)]
@@ -41,22 +68,20 @@ pub struct DiskInfo {
     pub percent: u32,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct DockerContainer {
-    #[serde(rename = "ID")]
+    #[serde(alias = "ID")]
     pub id: String,
-    #[serde(rename = "Names")]
+    #[serde(alias = "Names")]
     pub names: String,
-    #[serde(rename = "Image")]
+    #[serde(alias = "Image")]
     pub image: String,
-    #[serde(rename = "Status")]
+    #[serde(alias = "Status")]
     pub status: String,
-    #[serde(rename = "State")]
+    #[serde(alias = "State")]
     pub state: String,
-    #[serde(rename = "Ports")]
+    #[serde(alias = "Ports")]
     pub ports: String,
-    #[serde(rename = "Names")]
-    pub names_alt: Option<String>, // Some versions might have different casing
 }
 
 #[derive(serde::Serialize)]
@@ -70,9 +95,17 @@ pub struct SystemService {
 
 pub struct SshSession {
     session: Mutex<Session>,
+    last_net_stats: Mutex<Option<(u64, u64, Instant)>>,
 }
 
 impl SshSession {
+    pub fn new(session: Session) -> Self {
+        Self {
+            session: Mutex::new(session),
+            last_net_stats: Mutex::new(None),
+        }
+    }
+
     pub fn connect(host: &str, username: &str, password: Option<&str>) -> Result<Self, String> {
         let final_host = if host.contains(':') {
             host.to_string()
@@ -97,7 +130,7 @@ impl SshSession {
             return Err("Authentication failed: User not authorized".to_string());
         }
 
-        Ok(SshSession { session: Mutex::new(session) })
+        Ok(SshSession::new(session))
     }
 
     pub fn upload_file(&self, local_data: &[u8], remote_path: &str) -> Result<(), String> {
@@ -257,22 +290,27 @@ impl SshSession {
         // 2. CPU Load (1min)
         // 3. Memory info (bytes)
         // 4. Disk info (bytes)
-        let cmd = "hostname; uptime -p; cat /proc/loadavg; free -b; df -k / | tail -n 1";
+        // 5. Net info (rx/tx bytes)
+        // 6. Top 5 processes
+        let cmd = "hostname; uptime -p; cat /proc/loadavg; free -b; df -k / | tail -n 1; cat /etc/os-release | grep PRETTY_NAME | cut -d'\"' -f2; cat /proc/net/dev | grep -E 'eth|ens|eno|wlan' | awk '{print $1, $2, $10}'; ps -eo pid,user,%cpu,%mem,comm --sort=-%cpu --no-headers | head -n 5";
         let raw_output = self.execute_command(cmd)?;
         let lines: Vec<&str> = raw_output.lines().collect();
 
-        if lines.len() < 5 {
+        if lines.len() < 7 {
             return Err("Failed to get enough system info lines".to_string());
         }
 
         let hostname = lines[0].to_string();
         let uptime = lines[1].to_string();
+        // free -b takes 3 lines (headers, Mem, Swap)
+        // os_info is now at index 7
+        let os_info = lines.get(7).unwrap_or(&"Unknown Linux").to_string();
         
-        // Parse CPU (e.g. 0.05 0.03 0.01 1/123 4567)
+        // Parse CPU (loadavg is index 2)
         let load_parts: Vec<&str> = lines[2].split_whitespace().collect();
         let load_1min = load_parts.get(0).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
         
-        // Parse Memory (e.g. Mem: 16453775360 4537753600 11916021760 ...)
+        // Parse Memory
         let mut mem_total = 0;
         let mut mem_used = 0;
         let mut mem_free = 0;
@@ -289,30 +327,78 @@ impl SshSession {
         // Parse Disk
         let mut disks = Vec::new();
         for line in &lines {
-            // Looking for lines that look like df output for a mount point
             let parts: Vec<&str> = line.split_whitespace().collect();
-            // df -k output typically has 6 columns. Data line starts with /dev or similar.
-            if parts.len() >= 6 && (parts[0].starts_with('/') || parts[5] == "/") {
+            // Disk lines must start with /dev or / and have 6 parts.
+            // This prevents matching process lines like "/usr/bin/foo /"
+            if parts.len() >= 6 && parts[0].starts_with('/') {
                 let total_kb = parts[1].parse::<u64>().unwrap_or(0);
                 let used_kb = parts[2].parse::<u64>().unwrap_or(0);
                 let percent_str = parts[4].replace("%", "");
                 let percent = percent_str.parse::<u32>().unwrap_or(0);
                 let mount = parts[5].to_string();
                 
-                // Convert KB to Bytes
-                let total = total_kb * 1024;
-                let used = used_kb * 1024;
-                
-                disks.push(DiskInfo { mount, total, used, percent });
+                // Only include the main disk / or meaningful mounts
+                if mount == "/" || mount.starts_with("/mnt") || mount.starts_with("/media") {
+                    let total = total_kb * 1024;
+                    let used = used_kb * 1024;
+                    disks.push(DiskInfo { mount, total, used, percent });
+                }
+            }
+        }
+
+        // Parse Network
+        let mut current_rx = 0;
+        let mut current_tx = 0;
+        for line in &lines {
+            if line.contains(':') && (line.contains("eth") || line.contains("ens") || line.contains("eno") || line.contains("wlan")) {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 3 {
+                    // parts[0] is "eth0:", parts[1] is RX, parts[2] is TX
+                    current_rx += parts[1].parse::<u64>().unwrap_or(0);
+                    current_tx += parts[2].parse::<u64>().unwrap_or(0);
+                }
+            }
+        }
+
+        let mut rx_speed = 0.0;
+        let mut tx_speed = 0.0;
+        let now = Instant::now();
+        {
+            let mut last_stats = self.last_net_stats.lock().unwrap();
+            if let Some((prev_rx, prev_tx, prev_time)) = *last_stats {
+                let duration = now.duration_since(prev_time).as_secs_f64();
+                if duration > 0.0 {
+                    rx_speed = (current_rx.saturating_sub(prev_rx)) as f64 / duration;
+                    tx_speed = (current_tx.saturating_sub(prev_tx)) as f64 / duration;
+                }
+            }
+            *last_stats = Some((current_rx, current_tx, now));
+        }
+
+        // Parse Processes
+        let mut processes = Vec::new();
+        for line in &lines {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            // Process lines start with a PID (number)
+            if parts.len() >= 5 && parts[0].chars().all(|c| c.is_digit(10)) {
+                let pid = parts[0].to_string();
+                let user = parts[1].to_string();
+                let cpu = parts[2].parse::<f32>().unwrap_or(0.0);
+                let mem = parts[3].parse::<f32>().unwrap_or(0.0);
+                let command = parts[4..].join(" ");
+                processes.push(ProcessInfo { pid, user, cpu, mem, command });
             }
         }
 
         Ok(SysInfo {
             hostname,
             uptime,
+            os_info,
             cpu: CpuInfo { usage: load_1min },
             memory: MemInfo { total: mem_total, used: mem_used, free: mem_free },
             disks,
+            net: NetInfo { rx_speed, tx_speed },
+            processes,
         })
     }
 
@@ -324,10 +410,16 @@ impl SshSession {
             if line.trim().is_empty() || line.starts_with("--- STDERR") {
                 continue;
             }
-            if let Ok(container) = serde_json::from_str::<DockerContainer>(line) {
-                containers.push(container);
+            match serde_json::from_str::<DockerContainer>(line) {
+                Ok(container) => containers.push(container),
+                Err(e) => println!("Failed to parse docker line: {} - Error: {}", line, e),
             }
         }
+        
+        if containers.is_empty() && !output.is_empty() {
+            println!("No containers parsed. Raw output: {}", output);
+        }
+        
         Ok(containers)
     }
 
@@ -370,9 +462,87 @@ impl SshSession {
             return Err("Invalid service action".to_string());
         }
         let cmd = format!("sudo systemctl {} {}", action, service_name);
-        // Note: This might require sudo without password or handled via pty if password needed
-        // For now we assume standard cloud user or sudoers config
         self.execute_command(&cmd)?;
+        Ok(())
+    }
+
+    pub fn kill_process(&self, pid: &str) -> Result<(), String> {
+        let cmd = format!("sudo kill -9 {}", pid);
+        self.execute_command(&cmd)?;
+        Ok(())
+    }
+
+    pub fn get_firewall_rules(&self) -> Result<Vec<FirewallRule>, String> {
+        let mut rules = Vec::new();
+        
+        // 1. Try UFW (Ubuntu/Debian)
+        let ufw_res = self.execute_command("sudo ufw status | grep -E 'ALLOW|DENY'");
+        if let Ok(output) = ufw_res {
+            for line in output.lines() {
+                // Stop if we hit the STDERR section or skip error/usage lines
+                if line.contains("--- STDERR") { break; }
+                if line.contains("To") || line.contains("---") || line.contains("sudo:") || 
+                   line.to_lowercase().contains("usage:") || line.to_lowercase().contains("not found") {
+                    continue;
+                }
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    rules.push(FirewallRule { 
+                        to: parts[0].to_string(), 
+                        action: parts[1].to_string(), 
+                        from: parts.get(2).unwrap_or(&"anywhere").to_string(), 
+                        proto: "any".to_string() 
+                    });
+                }
+            }
+            if !rules.is_empty() { return Ok(rules); }
+        }
+
+        // 2. Try Firewall-cmd (CentOS/RHEL)
+        let fw_cmd_res = self.execute_command("sudo firewall-cmd --list-ports --list-services");
+        if let Ok(output) = fw_cmd_res {
+            // Stop if we hit the STDERR section
+            let clean_output = if let Some(idx) = output.find("--- STDERR") {
+                &output[..idx]
+            } else {
+                &output
+            };
+
+            if clean_output.contains("not found") || clean_output.contains("usage:") {
+                return Ok(Vec::new());
+            }
+            
+            for line in clean_output.lines() {
+                for part in line.split_whitespace() {
+                    if part == "sudo:" || part == "---" { continue; }
+                    rules.push(FirewallRule {
+                        to: part.to_string(),
+                        action: "ALLOW (firewalld)".to_string(),
+                        from: "anywhere".to_string(),
+                        proto: if part.contains('/') { "tcp/udp".to_string() } else { "service".to_string() }
+                    });
+                }
+            }
+        }
+        
+        Ok(rules)
+    }
+
+    pub fn manage_firewall_rule(&self, port: &str, action: &str) -> Result<(), String> {
+        // Try UFW first
+        let ufw_check = self.execute_command("which ufw");
+        if ufw_check.is_ok() {
+            let cmd = format!("sudo ufw {} {}", action, port);
+            self.execute_command(&cmd)?;
+        } else {
+            // Try firewalld
+            let cmd = if action == "allow" {
+                format!("sudo firewall-cmd --permanent --add-port={}/tcp && sudo firewall-cmd --reload", port)
+            } else {
+                format!("sudo firewall-cmd --permanent --remove-port={}/tcp && sudo firewall-cmd --reload", port)
+            };
+            self.execute_command(&cmd)?;
+        }
         Ok(())
     }
 

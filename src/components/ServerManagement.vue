@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { LayoutDashboard, Box, Settings, Activity, Sparkles } from 'lucide-vue-next';
+import { LayoutDashboard, Box, Settings, Activity, Sparkles, ShieldCheck } from 'lucide-vue-next';
 import { invoke } from '@tauri-apps/api/core';
 import { useServerStore } from '../stores/server';
 import { useSettingsStore } from '../stores/settings';
 import DashboardOverview from './DashboardOverview.vue';
 import DockerView from './DockerView.vue';
 import ServicesView from './ServicesView.vue';
+import ProcessView from './ProcessView.vue';
+import FirewallView from './FirewallView.vue';
 import AiDiagnosisModal from './AiDiagnosisModal.vue';
 
 const serverStore = useServerStore();
@@ -67,8 +69,10 @@ const runDiagnosis = async () => {
 
 const subTabs = [
   { id: 'overview', name: '概览', icon: LayoutDashboard },
+  { id: 'processes', name: '进程', icon: Activity },
   { id: 'docker', name: 'Docker', icon: Box },
   { id: 'services', name: '服务', icon: Settings },
+  { id: 'firewall', name: '防火墙', icon: ShieldCheck },
 ];
 </script>
 
@@ -115,8 +119,10 @@ const subTabs = [
         mode="out-in"
       >
         <DashboardOverview v-if="activeSubTab === 'overview'" />
+        <ProcessView v-else-if="activeSubTab === 'processes'" />
         <DockerView v-else-if="activeSubTab === 'docker'" />
         <ServicesView v-else-if="activeSubTab === 'services'" />
+        <FirewallView v-else-if="activeSubTab === 'firewall'" />
       </transition>
     </div>
 

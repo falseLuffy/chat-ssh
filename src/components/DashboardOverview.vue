@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useServerStore } from '../stores/server';
-import { Loader2, RefreshCw, Cpu, HardDrive, MemoryStick, Clock, Monitor } from 'lucide-vue-next';
+import { Loader2, RefreshCw, Cpu, HardDrive, MemoryStick, Clock, Monitor, ArrowUp, ArrowDown } from 'lucide-vue-next';
 
 // ECharts imports
 import { use } from 'echarts/core';
@@ -35,8 +35,10 @@ const sysInfo = ref<any>(null);
 const error = ref('');
 let pollTimer: any = null;
 
-const history = ref<{ cpu: number[], time: string[] }>({
+const history = ref<{ cpu: number[], net_rx: number[], net_tx: number[], time: string[] }>({
   cpu: [],
+  net_rx: [],
+  net_tx: [],
   time: []
 });
 
@@ -58,9 +60,13 @@ const fetchInfo = async () => {
     const now = new Date().toLocaleTimeString();
     history.value.time.push(now);
     history.value.cpu.push(info.cpu.usage * 100);
+    history.value.net_rx.push(info.net.rx_speed);
+    history.value.net_tx.push(info.net.tx_speed);
     if (history.value.time.length > 20) {
       history.value.time.shift();
       history.value.cpu.shift();
+      history.value.net_rx.shift();
+      history.value.net_tx.shift();
     }
   } catch (e) {
     console.error('Failed to fetch sys info:', e);
@@ -115,49 +121,128 @@ const cpuOption = ref({
 });
 
 const memOption = ref({
-  tooltip: { trigger: 'item' },
-  legend: { bottom: '5%', left: 'center', textStyle: { color: '#94a3b8', fontSize: 10 } },
-  series: [{
-    name: '内存使用',
-    type: 'pie',
-    radius: ['40%', '70%'],
-    avoidLabelOverlap: false,
-    itemStyle: { borderRadius: 10, borderColor: '#1e293b', borderWidth: 2 },
-    label: { show: false },
-    data: [
-      { value: 0, name: '已用', itemStyle: { color: '#60a5fa' } },
-      { value: 0, name: '空闲', itemStyle: { color: '#334155' } }
-    ]
-  }]
+  tooltip: { 
+    trigger: 'item',
+    formatter: (params: any) => `${params.name}: ${formatBytes(params.value)} (${params.percent}%)`
+  },
+  legend: { bottom: '5%', left: 'center', textStyle: { color: '#94a3b8' } },
+  series: [
+    {
+      name: '内存',
+      type: 'pie',
+      radius: ['50%', '70%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 10, borderColor: '#0f172a', borderWidth: 2 },
+      label: { show: false, position: 'center' },
+      emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold', color: '#fff', formatter: '{d}%' } },
+      labelLine: { show: false },
+      data: []
+    }
+  ]
 });
 
 const diskOption = ref({
-  tooltip: { trigger: 'item' },
-  legend: { bottom: '5%', left: 'center', textStyle: { color: '#94a3b8', fontSize: 10 } },
-  series: [{
-    name: '磁盘空间',
-    type: 'pie',
-    radius: ['40%', '70%'],
-    itemStyle: { borderRadius: 10, borderColor: '#1e293b', borderWidth: 2 },
-    label: { show: false },
-    data: [
-      { value: 0, name: '已用', itemStyle: { color: '#f59e0b' } },
-      { value: 0, name: '可用', itemStyle: { color: '#334155' } }
-    ]
-  }]
+  tooltip: { 
+    trigger: 'item',
+    formatter: (params: any) => `${params.name}: ${formatBytes(params.value)} (${params.percent}%)`
+  },
+  legend: { bottom: '5%', left: 'center', textStyle: { color: '#94a3b8' } },
+  series: [
+    {
+      name: '磁盘',
+      type: 'pie',
+      radius: ['50%', '70%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 10, borderColor: '#0f172a', borderWidth: 2 },
+      label: { show: false, position: 'center' },
+      emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold', color: '#fff', formatter: '{d}%' } },
+      labelLine: { show: false },
+      data: []
+    }
+  ]
 });
 
 const historyOption = ref({
+  tooltip: { 
+    trigger: 'axis',
+    formatter: (params: any) => {
+      const p = params[0];
+      return `<div class="bg-[#1e293b] border border-slate-800 p-2 rounded-lg shadow-xl">
+                <div class="text-[10px] text-slate-400 mb-1">${p.name}</div>
+                <div class="flex items-center justify-between space-x-4">
+                  <span class="flex items-center text-xs text-slate-300">
+                    <span class="w-2 h-2 rounded-full mr-2" style="background-color: #60a5fa"></span>
+                    CPU 占用
+                  </span>
+                  <span class="text-xs font-mono font-bold text-blue-400">${p.value.toFixed(1)}%</span>
+                </div>
+              </div>`;
+    },
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0
+  },
   grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
   xAxis: { type: 'category', boundaryGap: false, data: [], axisLabel: { color: '#64748b' } },
   yAxis: { type: 'value', max: 100, axisLabel: { color: '#64748b' } },
   series: [{
+    name: 'CPU',
     data: [],
     type: 'line',
     smooth: true,
     areaStyle: { color: 'rgba(96, 165, 250, 0.2)' },
     itemStyle: { color: '#60a5fa' }
   }]
+});
+
+const netOption = ref({
+  tooltip: { 
+    trigger: 'axis',
+    formatter: (params: any) => {
+      let res = `<div class="text-[10px] text-slate-400 mb-1">${params[0].name}</div>`;
+      params.forEach((item: any) => {
+        res += `<div class="flex items-center justify-between space-x-4">
+                  <span class="flex items-center text-xs text-slate-300">
+                    <span class="w-2 h-2 rounded-full mr-2" style="background-color: ${item.color}"></span>
+                    ${item.seriesName}
+                  </span>
+                  <span class="text-xs font-mono font-bold" style="color: ${item.color}">${formatSpeed(item.value)}</span>
+                </div>`;
+      });
+      return `<div class="bg-[#1e293b] border border-slate-800 p-2 rounded-lg shadow-xl">${res}</div>`;
+    },
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0
+  },
+  legend: { data: ['下载', '上传'], textStyle: { color: '#94a3b8' } },
+  grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+  xAxis: { type: 'category', boundaryGap: false, data: [], axisLabel: { color: '#64748b' } },
+  yAxis: { 
+    type: 'value', 
+    axisLabel: { 
+      color: '#64748b',
+      formatter: (val: number) => formatSpeed(val)
+    } 
+  },
+  series: [
+    {
+      name: '下载',
+      data: [],
+      type: 'line',
+      smooth: true,
+      itemStyle: { color: '#10b981' },
+      areaStyle: { color: 'rgba(16, 185, 129, 0.1)' }
+    },
+    {
+      name: '上传',
+      data: [],
+      type: 'line',
+      smooth: true,
+      itemStyle: { color: '#6366f1' },
+      areaStyle: { color: 'rgba(99, 102, 241, 0.1)' }
+    }
+  ]
 });
 
 watch(sysInfo, (newVal) => {
@@ -179,7 +264,17 @@ watch(sysInfo, (newVal) => {
 
   historyOption.value.xAxis.data = history.value.time as any;
   historyOption.value.series[0].data = history.value.cpu as any;
+
+  netOption.value.xAxis.data = history.value.time as any;
+  netOption.value.series[0].data = history.value.net_rx as any;
+  netOption.value.series[1].data = history.value.net_tx as any;
 }, { deep: true });
+
+const formatSpeed = (bytesPerSec: number) => {
+  if (bytesPerSec < 1024) return bytesPerSec.toFixed(0) + ' B/s';
+  if (bytesPerSec < 1024 * 1024) return (bytesPerSec / 1024).toFixed(1) + ' KB/s';
+  return (bytesPerSec / (1024 * 1024)).toFixed(1) + ' MB/s';
+};
 
 const formatBytes = (bytes: number) => {
   if (bytes === 0) return '0 B';
@@ -224,14 +319,24 @@ const formatBytes = (bytes: number) => {
 
     <template v-else-if="sysInfo">
       <!-- Quick Stats -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-4 rounded-2xl flex items-center space-x-4">
+          <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-500">
+            <Server :size="24" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">操作系统</p>
+            <p class="text-sm font-bold text-slate-200 truncate" :title="sysInfo.os_info">{{ sysInfo.os_info }}</p>
+          </div>
+        </div>
+
         <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-4 rounded-2xl flex items-center space-x-4">
           <div class="p-3 bg-blue-500/10 rounded-xl text-blue-500">
             <Monitor :size="24" />
           </div>
-          <div>
+          <div class="min-w-0 flex-1">
             <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">主机名</p>
-            <p class="text-sm font-bold text-slate-200 truncate">{{ sysInfo.hostname }}</p>
+            <p class="text-sm font-bold text-slate-200 truncate" :title="sysInfo.hostname">{{ sysInfo.hostname }}</p>
           </div>
         </div>
         
@@ -250,8 +355,11 @@ const formatBytes = (bytes: number) => {
             <MemoryStick :size="24" />
           </div>
           <div>
-            <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">总内存</p>
-            <p class="text-sm font-bold text-slate-200">{{ formatBytes(sysInfo.memory.total) }}</p>
+            <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">内存状态</p>
+            <p class="text-sm font-bold text-slate-200">
+              {{ formatBytes(sysInfo.memory.used) }} / {{ formatBytes(sysInfo.memory.total) }} 
+              <span class="text-blue-400 ml-1">({{ ((sysInfo.memory.used / sysInfo.memory.total) * 100).toFixed(1) }}%)</span>
+            </p>
           </div>
         </div>
 
@@ -260,8 +368,13 @@ const formatBytes = (bytes: number) => {
             <HardDrive :size="24" />
           </div>
           <div>
-            <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">系统磁盘</p>
-            <p class="text-sm font-bold text-slate-200">{{ sysInfo.disks[0]?.mount || '/' }} ({{ sysInfo.disks[0]?.percent }}%)</p>
+            <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">磁盘状态</p>
+            <p class="text-sm font-bold text-slate-200">
+              {{ sysInfo.disks[0]?.mount || '/' }} 
+              <span :class="['ml-1', (sysInfo.disks[0]?.percent || 0) > 90 ? 'text-red-500' : 'text-amber-500']">
+                ({{ sysInfo.disks[0]?.percent || 0 }}%)
+              </span>
+            </p>
           </div>
         </div>
       </div>
@@ -299,11 +412,32 @@ const formatBytes = (bytes: number) => {
         </div>
       </div>
 
-      <!-- History Line Chart -->
-      <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-6 rounded-3xl flex flex-col min-h-[320px]">
-        <h3 class="text-sm font-bold text-slate-400 mb-4">负载趋势 (最近 20 次采样)</h3>
-        <div class="flex-1 min-h-0">
-          <VChart :option="historyOption" autoresize />
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <!-- CPU History -->
+        <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-6 rounded-3xl flex flex-col min-h-[320px]">
+          <h3 class="text-sm font-bold text-slate-400 mb-4 flex items-center">
+            <Cpu class="mr-2" :size="16" /> CPU 负载趋势
+          </h3>
+          <div class="flex-1 min-h-0">
+            <VChart :option="historyOption" autoresize />
+          </div>
+        </div>
+
+        <!-- Network History -->
+        <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-6 rounded-3xl flex flex-col min-h-[320px]">
+          <h3 class="text-sm font-bold text-slate-400 mb-4 flex items-center justify-between">
+            <div class="flex items-center">
+              <Activity class="mr-2" :size="16" /> 实时网络流量
+            </div>
+            <div class="flex items-center space-x-3 text-[10px] font-mono">
+              <span class="text-emerald-500 flex items-center"><ArrowDown :size="10" /> {{ formatSpeed(sysInfo?.net?.rx_speed || 0) }}</span>
+              <span class="text-indigo-500 flex items-center"><ArrowUp :size="10" /> {{ formatSpeed(sysInfo?.net?.tx_speed || 0) }}</span>
+            </div>
+          </h3>
+          <div class="flex-1 min-h-0">
+            <VChart :option="netOption" autoresize />
+          </div>
         </div>
       </div>
     </template>
