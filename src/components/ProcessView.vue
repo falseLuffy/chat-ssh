@@ -69,7 +69,7 @@ const handleKill = async (pid: string, name: string) => {
 };
 
 onMounted(() => {
-  fetchProcesses();
+  // fetchProcesses is now handled by the immediate watch
   pollTimer = setInterval(fetchProcesses, 5000);
 });
 
@@ -77,9 +77,16 @@ onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer);
 });
 
-watch(() => serverStore.activeServer?.id, () => {
-  fetchProcesses();
-});
+watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
+  if (newId && newStatus === 'online') {
+    fetchProcesses();
+  } else {
+    if (pollTimer) clearInterval(pollTimer);
+    processes.value = [];
+    error.value = '服务器未连接';
+    isLoading.value = false;
+  }
+}, { immediate: true });
 
 const filteredProcesses = ref<any[]>([]);
 watch([processes, searchQuery], () => {

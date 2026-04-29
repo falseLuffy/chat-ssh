@@ -63,14 +63,20 @@ const handleAction = async (id: string, action: string, name: string) => {
 };
 
 onMounted(() => {
-  if (serverStore.activeServer?.status === 'online') {
-    fetchContainers();
-  }
+  // fetchContainers is now handled by the immediate watch
 });
 
-watch(() => serverStore.activeServer?.id, () => {
-  fetchContainers();
-});
+watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
+  if (newId && newStatus === 'online') {
+    fetchContainers();
+  } else {
+    containers.value = [];
+    error.value = '服务器未连接';
+    isLoading.value = false;
+  }
+}, { immediate: true });
+
+
 
 const filteredContainers = ref<any[]>([]);
 watch([containers, searchQuery], () => {

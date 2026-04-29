@@ -81,12 +81,18 @@ const handleDeleteRule = async (to: string) => {
 };
 
 onMounted(() => {
-  fetchRules();
+  // fetchRules is now handled by the immediate watch
 });
 
-watch(() => serverStore.activeServer?.id, () => {
-  fetchRules();
-});
+watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
+  if (newId && newStatus === 'online') {
+    fetchRules();
+  } else {
+    rules.value = [];
+    error.value = '服务器未连接';
+    isLoading.value = false;
+  }
+}, { immediate: true });
 
 const filteredRules = ref<any[]>([]);
 watch([rules, searchQuery], () => {

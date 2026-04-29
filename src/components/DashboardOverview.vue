@@ -90,20 +90,25 @@ const stopPolling = () => {
 };
 
 onMounted(() => {
-  if (serverStore.activeServer?.status === 'online') {
-    startPolling();
-  }
+  // startPolling is now handled by the immediate watch
 });
 
 onUnmounted(() => {
   stopPolling();
 });
 
-watch(() => serverStore.activeServer?.id, () => {
-  isLoading.value = true;
-  history.value = { cpu: [], time: [] };
-  startPolling();
-});
+watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
+  if (newId && newStatus === 'online') {
+    isLoading.value = true;
+    history.value = { cpu: [], net_rx: [], net_tx: [], time: [] };
+    startPolling();
+  } else {
+    stopPolling();
+    sysInfo.value = null;
+    error.value = '服务器未连接';
+    isLoading.value = false;
+  }
+}, { immediate: true });
 
 // Chart Options
 const cpuOption = ref({

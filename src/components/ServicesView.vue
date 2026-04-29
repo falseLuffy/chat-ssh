@@ -64,14 +64,19 @@ const handleAction = async (name: string, action: string) => {
 };
 
 onMounted(() => {
-  if (serverStore.activeServer?.status === 'online') {
-    fetchServices();
-  }
+  // fetchServices is now handled by the immediate watch
 });
 
-watch(() => serverStore.activeServer?.id, () => {
-  fetchServices();
-});
+watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
+  if (newId && newStatus === 'online') {
+    fetchServices();
+  } else {
+    services.value = [];
+    error.value = '服务器未连接';
+    isLoading.value = false;
+  }
+}, { immediate: true });
+
 
 const filteredServices = ref<any[]>([]);
 watch([services, searchQuery], () => {
