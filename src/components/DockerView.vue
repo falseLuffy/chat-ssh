@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import type { Server } from '../stores/server';
 import { invoke } from '@tauri-apps/api/core';
-import { useServerStore } from '../stores/server';
 import { useUIStore } from '../stores/ui';
-import { 
-  Box, 
-  Play, 
-  Square, 
-  RefreshCw, 
-  Trash2, 
-  Search, 
-  Loader2, 
+import {
+  Box,
+  Play,
+  Square,
+  RefreshCw,
+  Trash2,
+  Search,
+  Loader2,
   ExternalLink,
   ShieldAlert,
   Activity
 } from 'lucide-vue-next';
 
-const serverStore = useServerStore();
+const props = defineProps<{ server: Server }>();
 const ui = useUIStore();
 const containers = ref<any[]>([]);
 const isLoading = ref(true);
@@ -24,7 +24,7 @@ const searchQuery = ref('');
 const error = ref('');
 
 const fetchContainers = async () => {
-  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') {
+  if (!props.server || props.server.status !== 'online') {
     error.value = '服务器未连接';
     isLoading.value = false;
     return;
@@ -33,7 +33,7 @@ const fetchContainers = async () => {
   try {
     isLoading.value = true;
     const result = await invoke<any[]>('get_docker_containers', {
-      serverName: serverStore.activeServer.name
+      serverName: props.server.name
     });
     containers.value = result;
     error.value = '';
@@ -46,12 +46,12 @@ const fetchContainers = async () => {
 };
 
 const handleAction = async (id: string, action: string, name: string) => {
-  if (!serverStore.activeServer) return;
+  if (!props.server) return;
 
   try {
     ui.showToast(`正在执行 ${action}: ${name}...`, 'info');
     await invoke('manage_docker_container', {
-      serverName: serverStore.activeServer.name,
+      serverName: props.server.name,
       containerId: id,
       action: action
     });
@@ -63,20 +63,19 @@ const handleAction = async (id: string, action: string, name: string) => {
 };
 
 onMounted(() => {
-  // fetchContainers is now handled by the immediate watch
+  if (props.server.status === 'online') {
+    fetchContainers();
+  }
 });
 
-watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
-  if (newId && newStatus === 'online') {
+watch(() => props.server.status, (newStatus) => {
+  if (newStatus === 'online') {
     fetchContainers();
   } else {
-    containers.value = [];
     error.value = '服务器未连接';
     isLoading.value = false;
   }
-}, { immediate: true });
-
-
+});
 
 const filteredContainers = ref<any[]>([]);
 watch([containers, searchQuery], () => {
@@ -84,8 +83,8 @@ watch([containers, searchQuery], () => {
     filteredContainers.value = containers.value;
   } else {
     const q = searchQuery.value.toLowerCase();
-    filteredContainers.value = containers.value.filter(c => 
-      (c.names && c.names.toLowerCase().includes(q)) || 
+    filteredContainers.value = containers.value.filter(c =>
+      (c.names && c.names.toLowerCase().includes(q)) ||
       (c.image && c.image.toLowerCase().includes(q)) ||
       (c.id && c.id.toLowerCase().includes(q))
     );
@@ -114,13 +113,13 @@ const getStatusColor = (state: string) => {
         </h2>
         <p class="text-slate-400 text-xs mt-1">可视化管理远程服务器上的容器镜像</p>
       </div>
-      
+
       <div class="flex items-center space-x-3">
         <div class="relative">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" :size="16" />
-          <input 
+          <input
             v-model="searchQuery"
-            type="text" 
+            type="text"
             placeholder="搜索容器名称、镜像..."
             class="bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-64 transition-all"
           />
@@ -153,9 +152,9 @@ const getStatusColor = (state: string) => {
         <Box :size="48" class="mb-4 opacity-20" />
         <p>未找到符合条件的容器</p>
       </div>
-      
+
       <div v-else class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
-          <div v-for="container in filteredContainers" 
+          <div v-for="container in filteredContainers"
             :key="container.id"
             class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 hover:border-slate-700 p-5 rounded-2xl transition-all group"
           >
@@ -171,7 +170,7 @@ const getStatusColor = (state: string) => {
                 </div>
               </div>
               <div class="flex items-center space-x-2">
-                <span 
+                <span
                   :class="['px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase', getStatusColor(container.state)]"
                 >
                   {{ container.state }}
@@ -198,7 +197,7 @@ const getStatusColor = (state: string) => {
           <!-- Actions -->
           <div class="flex items-center justify-between pt-4 border-t border-slate-800">
             <div class="flex space-x-2">
-              <button 
+              <button
                 v-if="container.state !== 'running'"
                 @click="handleAction(container.id, 'start', container.names)"
                 class="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-all"
@@ -206,7 +205,7 @@ const getStatusColor = (state: string) => {
               >
                 <Play :size="14" />
               </button>
-              <button 
+              <button
                 v-if="container.state === 'running'"
                 @click="handleAction(container.id, 'stop', container.names)"
                 class="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
@@ -214,7 +213,7 @@ const getStatusColor = (state: string) => {
               >
                 <Square :size="14" />
               </button>
-              <button 
+              <button
                 @click="handleAction(container.id, 'restart', container.names)"
                 class="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white rounded-lg transition-all"
                 title="重启"
@@ -222,9 +221,9 @@ const getStatusColor = (state: string) => {
                 <RefreshCw :size="14" />
               </button>
             </div>
-            
+
             <div class="flex space-x-2">
-              <button 
+              <button
                 @click="handleAction(container.id, 'rm', container.names)"
                 class="p-2 bg-slate-800 text-slate-500 hover:bg-red-600 hover:text-white rounded-lg transition-all"
                 title="删除"

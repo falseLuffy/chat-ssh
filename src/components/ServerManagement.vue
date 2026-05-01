@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import type { Server } from '../stores/server';
 import { LayoutDashboard, Box, Settings, Activity, Sparkles, ShieldCheck } from 'lucide-vue-next';
 import { invoke } from '@tauri-apps/api/core';
-import { useServerStore } from '../stores/server';
 import { useSettingsStore } from '../stores/settings';
 import DashboardOverview from './DashboardOverview.vue';
 import DockerView from './DockerView.vue';
@@ -11,7 +11,7 @@ import ProcessView from './ProcessView.vue';
 import FirewallView from './FirewallView.vue';
 import AiDiagnosisModal from './AiDiagnosisModal.vue';
 
-const serverStore = useServerStore();
+const props = defineProps<{ server: Server }>();
 const settingsStore = useSettingsStore();
 
 const activeSubTab = ref('overview');
@@ -21,8 +21,8 @@ const diagnosisResult = ref('');
 const diagnosisError = ref('');
 
 const runDiagnosis = async () => {
-  if (!serverStore.activeServer) return;
-  
+  if (!props.server) return;
+
   isDiagnosisOpen.value = true;
   isGenerating.value = true;
   diagnosisError.value = '';
@@ -31,9 +31,9 @@ const runDiagnosis = async () => {
   try {
     // 1. Collect Context
     const [sysInfo, dockerInfo, servicesInfo] = await Promise.all([
-      invoke<any>('get_server_sys_info', { serverName: serverStore.activeServer.name }),
-      invoke<any[]>('get_docker_containers', { serverName: serverStore.activeServer.name }),
-      invoke<any[]>('get_system_services', { serverName: serverStore.activeServer.name })
+      invoke<any>('get_server_sys_info', { serverName: props.server.name }),
+      invoke<any[]>('get_docker_containers', { serverName: props.server.name }),
+      invoke<any[]>('get_system_services', { serverName: props.server.name })
     ]);
 
     const context = `
@@ -53,7 +53,7 @@ const runDiagnosis = async () => {
 
     // 2. Call AI
     const result = await invoke<string>('diagnose_server_issue', {
-      serverName: serverStore.activeServer.name,
+      serverName: props.server.name,
       context,
       apiKey: settingsStore.deepseekApiKey || ''
     });
@@ -81,14 +81,14 @@ const subTabs = [
     <!-- Sub-navigation Header -->
     <div class="flex items-center px-6 py-3 border-b border-slate-800/50 bg-[#1e293b]/30 backdrop-blur-md">
       <div class="flex items-center space-x-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800/50">
-        <button 
-          v-for="tab in subTabs" 
+        <button
+          v-for="tab in subTabs"
           :key="tab.id"
           @click="activeSubTab = tab.id"
           :class="[
             'flex items-center space-x-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200',
-            activeSubTab === tab.id 
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' 
+            activeSubTab === tab.id
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
           ]"
         >
@@ -96,9 +96,9 @@ const subTabs = [
           <span>{{ tab.name }}</span>
         </button>
       </div>
-      
+
       <div class="ml-auto flex items-center space-x-4">
-        <button 
+        <button
           @click="runDiagnosis"
           class="flex items-center space-x-2 px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold transition-all group"
         >
@@ -114,20 +114,15 @@ const subTabs = [
 
     <!-- Sub-tab Content -->
     <div class="flex-1 min-h-0 overflow-hidden flex flex-col">
-      <transition 
-        name="fade" 
-        mode="out-in"
-      >
-        <DashboardOverview v-if="activeSubTab === 'overview'" />
-        <ProcessView v-else-if="activeSubTab === 'processes'" />
-        <DockerView v-else-if="activeSubTab === 'docker'" />
-        <ServicesView v-else-if="activeSubTab === 'services'" />
-        <FirewallView v-else-if="activeSubTab === 'firewall'" />
-      </transition>
+      <DashboardOverview v-show="activeSubTab === 'overview'" :server="server" />
+      <ProcessView v-show="activeSubTab === 'processes'" :server="server" />
+      <DockerView v-show="activeSubTab === 'docker'" :server="server" />
+      <ServicesView v-show="activeSubTab === 'services'" :server="server" />
+      <FirewallView v-show="activeSubTab === 'firewall'" :server="server" />
     </div>
 
     <!-- AI Diagnosis Modal -->
-    <AiDiagnosisModal 
+    <AiDiagnosisModal
       :is-open="isDiagnosisOpen"
       :is-generating="isGenerating"
       :result="diagnosisResult"

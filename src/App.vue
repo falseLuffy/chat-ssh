@@ -1,19 +1,17 @@
 <script setup lang="ts">
   import { ref, onMounted } from 'vue';
+  import { listen } from '@tauri-apps/api/event';
   import { useSettingsStore } from './stores/settings';
   import { useServerStore } from './stores/server';
   import { useKnowledgeStore } from './stores/knowledge';
   import { useScriptsStore } from './stores/scripts';
   import AiChatBox from './components/AiChatBox.vue';
   import ServerSidebar from './components/ServerSidebar.vue';
-  import TerminalView from './views/TerminalView.vue';
-  import FileBrowser from './components/FileBrowser.vue';
-  import OpsView from './views/OpsView.vue';
+  import ServerWorkspace from './components/ServerWorkspace.vue';
   import SettingsModal from './components/SettingsModal.vue';
   import ToastContainer from './components/ui/ToastContainer.vue';
   import ConfirmDialog from './components/ui/ConfirmDialog.vue';
   import ConflictModal from './components/ui/ConflictModal.vue';
-  import ServerManagement from './components/ServerManagement.vue';
   import { Terminal, Shield, Settings as SettingsIcon, Server, Cpu, LayoutDashboard } from 'lucide-vue-next';
 
   const settingsStore = useSettingsStore();
@@ -32,6 +30,15 @@
       knowledgeStore.initStore(),
       scriptsStore.initStore()
     ]);
+
+    // Listen for SSH disconnect events from backend
+    listen<{ server: string }>('ssh-disconnect', (event) => {
+      const serverName = event.payload.server;
+      const server = serverStore.servers.find(s => s.name === serverName);
+      if (server) {
+        serverStore.updateStatus(server.id, 'offline');
+      }
+    });
   });
 </script>
 
@@ -83,11 +90,24 @@
       </header>
 
       <!-- View Area -->
-      <div class="flex-1 min-h-0 bg-black/20">
-        <TerminalView v-show="activeTab === 'terminal'" :active-tab="activeTab" />
-        <ServerManagement v-if="activeTab === 'management'" />
-        <FileBrowser v-if="activeTab === 'files'" :active-tab="activeTab" />
-        <OpsView v-if="activeTab === 'ops'" />
+      <div class="flex-1 min-h-0 bg-black/20 relative overflow-hidden">
+        <!-- Empty state when no server selected -->
+        <div v-if="!serverStore.activeServerId"
+             class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 z-20 bg-[#0f172a]">
+          <Server :size="48" class="opacity-20 mb-4" />
+          <p class="text-sm">请在左侧选择一个服务器</p>
+        </div>
+        <!-- Per-server workspaces stacked with z-index -->
+        <ServerWorkspace
+          v-for="server in serverStore.servers"
+          :key="server.id"
+          :server="server"
+          :active-tab="activeTab"
+          :class="serverStore.activeServerId === server.id
+            ? 'z-10 visible pointer-events-auto opacity-100'
+            : 'z-0 invisible pointer-events-none opacity-0'"
+          class="absolute inset-0 transition-none"
+        />
       </div>
 
       <!-- Floating AI Chatbox -->

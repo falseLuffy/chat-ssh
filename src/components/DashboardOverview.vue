@@ -1,35 +1,35 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
+import type { Server } from '../stores/server';
 import { invoke } from '@tauri-apps/api/core';
-import { useServerStore } from '../stores/server';
-import { Loader2, RefreshCw, Cpu, HardDrive, MemoryStick, Clock, Monitor, ArrowUp, ArrowDown } from 'lucide-vue-next';
+import { Loader2, RefreshCw, Cpu, HardDrive, MemoryStick, Clock, Monitor, ArrowUp, ArrowDown, Activity, Server as ServerIcon } from 'lucide-vue-next';
 
 // ECharts imports
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { PieChart, LineChart, GaugeChart } from 'echarts/charts';
-import { 
-  TitleComponent, 
-  TooltipComponent, 
-  LegendComponent, 
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
   GridComponent,
   VisualMapComponent
 } from 'echarts/components';
 import VChart, { THEME_KEY } from 'vue-echarts';
 
 use([
-  CanvasRenderer, 
-  PieChart, 
-  LineChart, 
+  CanvasRenderer,
+  PieChart,
+  LineChart,
   GaugeChart,
-  TitleComponent, 
-  TooltipComponent, 
-  LegendComponent, 
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
   GridComponent,
   VisualMapComponent
 ]);
 
-const serverStore = useServerStore();
+const props = defineProps<{ server: Server }>();
 const isLoading = ref(true);
 const sysInfo = ref<any>(null);
 const error = ref('');
@@ -43,7 +43,7 @@ const history = ref<{ cpu: number[], net_rx: number[], net_tx: number[], time: s
 });
 
 const fetchInfo = async () => {
-  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') {
+  if (!props.server || props.server.status !== 'online') {
     error.value = '服务器未连接';
     isLoading.value = false;
     return;
@@ -51,11 +51,11 @@ const fetchInfo = async () => {
 
   try {
     const info = await invoke<any>('get_server_sys_info', {
-      serverName: serverStore.activeServer.name
+      serverName: props.server.name
     });
     sysInfo.value = info;
     error.value = '';
-    
+
     // Update history for line chart
     const now = new Date().toLocaleTimeString();
     history.value.time.push(now);
@@ -77,8 +77,7 @@ const fetchInfo = async () => {
 };
 
 const startPolling = () => {
-  stopPolling();
-  fetchInfo();
+  if (pollTimer) return;
   pollTimer = setInterval(fetchInfo, 5000);
 };
 
@@ -90,25 +89,29 @@ const stopPolling = () => {
 };
 
 onMounted(() => {
-  // startPolling is now handled by the immediate watch
+  if (props.server.status === 'online') {
+    isLoading.value = true;
+    fetchInfo();
+    startPolling();
+  }
 });
 
 onUnmounted(() => {
   stopPolling();
 });
 
-watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
-  if (newId && newStatus === 'online') {
+watch(() => props.server.status, (newStatus) => {
+  if (newStatus === 'online') {
     isLoading.value = true;
-    history.value = { cpu: [], net_rx: [], net_tx: [], time: [] };
+    fetchInfo();
     startPolling();
   } else {
     stopPolling();
-    sysInfo.value = null;
     error.value = '服务器未连接';
     isLoading.value = false;
+    sysInfo.value = null;
   }
-}, { immediate: true });
+});
 
 // Chart Options
 const cpuOption = ref({
@@ -126,7 +129,7 @@ const cpuOption = ref({
 });
 
 const memOption = ref({
-  tooltip: { 
+  tooltip: {
     trigger: 'item',
     formatter: (params: any) => `${params.name}: ${formatBytes(params.value)} (${params.percent}%)`
   },
@@ -147,7 +150,7 @@ const memOption = ref({
 });
 
 const diskOption = ref({
-  tooltip: { 
+  tooltip: {
     trigger: 'item',
     formatter: (params: any) => `${params.name}: ${formatBytes(params.value)} (${params.percent}%)`
   },
@@ -168,7 +171,7 @@ const diskOption = ref({
 });
 
 const historyOption = ref({
-  tooltip: { 
+  tooltip: {
     trigger: 'axis',
     formatter: (params: any) => {
       const p = params[0];
@@ -201,7 +204,7 @@ const historyOption = ref({
 });
 
 const netOption = ref({
-  tooltip: { 
+  tooltip: {
     trigger: 'axis',
     formatter: (params: any) => {
       let res = `<div class="text-[10px] text-slate-400 mb-1">${params[0].name}</div>`;
@@ -223,12 +226,12 @@ const netOption = ref({
   legend: { data: ['下载', '上传'], textStyle: { color: '#94a3b8' } },
   grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
   xAxis: { type: 'category', boundaryGap: false, data: [], axisLabel: { color: '#64748b' } },
-  yAxis: { 
-    type: 'value', 
-    axisLabel: { 
+  yAxis: {
+    type: 'value',
+    axisLabel: {
       color: '#64748b',
       formatter: (val: number) => formatSpeed(val)
-    } 
+    }
   },
   series: [
     {
@@ -252,9 +255,9 @@ const netOption = ref({
 
 watch(sysInfo, (newVal) => {
   if (!newVal) return;
-  
+
   cpuOption.value.series[0].data[0].value = Math.round(newVal.cpu.usage * 100);
-  
+
   memOption.value.series[0].data = [
     { value: newVal.memory.used, name: '已用', itemStyle: { color: '#60a5fa' } },
     { value: newVal.memory.free, name: '空闲', itemStyle: { color: '#334155' } }
@@ -327,7 +330,7 @@ const formatBytes = (bytes: number) => {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-4 rounded-2xl flex items-center space-x-4">
           <div class="p-3 bg-indigo-500/10 rounded-xl text-indigo-500">
-            <Server :size="24" />
+            <ServerIcon :size="24" />
           </div>
           <div class="min-w-0 flex-1">
             <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">操作系统</p>
@@ -344,7 +347,7 @@ const formatBytes = (bytes: number) => {
             <p class="text-sm font-bold text-slate-200 truncate" :title="sysInfo.hostname">{{ sysInfo.hostname }}</p>
           </div>
         </div>
-        
+
         <div class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-4 rounded-2xl flex items-center space-x-4">
           <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-500">
             <Clock :size="24" />
@@ -362,7 +365,7 @@ const formatBytes = (bytes: number) => {
           <div>
             <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">内存状态</p>
             <p class="text-sm font-bold text-slate-200">
-              {{ formatBytes(sysInfo.memory.used) }} / {{ formatBytes(sysInfo.memory.total) }} 
+              {{ formatBytes(sysInfo.memory.used) }} / {{ formatBytes(sysInfo.memory.total) }}
               <span class="text-blue-400 ml-1">({{ ((sysInfo.memory.used / sysInfo.memory.total) * 100).toFixed(1) }}%)</span>
             </p>
           </div>
@@ -375,7 +378,7 @@ const formatBytes = (bytes: number) => {
           <div>
             <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500">磁盘状态</p>
             <p class="text-sm font-bold text-slate-200">
-              {{ sysInfo.disks[0]?.mount || '/' }} 
+              {{ sysInfo.disks[0]?.mount || '/' }}
               <span :class="['ml-1', (sysInfo.disks[0]?.percent || 0) > 90 ? 'text-red-500' : 'text-amber-500']">
                 ({{ sysInfo.disks[0]?.percent || 0 }}%)
               </span>

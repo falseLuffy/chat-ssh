@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
+import type { Server } from '../stores/server';
 import { invoke } from '@tauri-apps/api/core';
-import { useServerStore } from '../stores/server';
 import { useUIStore } from '../stores/ui';
-import { 
-  Activity, 
-  Search, 
-  RefreshCw, 
-  XCircle, 
+import {
+  Activity,
+  Search,
+  RefreshCw,
+  XCircle,
   Loader2,
   ShieldAlert,
   Cpu,
@@ -16,7 +16,7 @@ import {
   Terminal
 } from 'lucide-vue-next';
 
-const serverStore = useServerStore();
+const props = defineProps<{ server: Server }>();
 const ui = useUIStore();
 const processes = ref<any[]>([]);
 const isLoading = ref(true);
@@ -25,7 +25,7 @@ const error = ref('');
 let pollTimer: any = null;
 
 const fetchProcesses = async () => {
-  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') {
+  if (!props.server || props.server.status !== 'online') {
     error.value = '服务器未连接';
     isLoading.value = false;
     return;
@@ -33,7 +33,7 @@ const fetchProcesses = async () => {
 
   try {
     const info = await invoke<any>('get_server_sys_info', {
-      serverName: serverStore.activeServer.name
+      serverName: props.server.name
     });
     processes.value = info.processes;
     error.value = '';
@@ -58,7 +58,7 @@ const handleKill = async (pid: string, name: string) => {
   try {
     ui.showToast(`正在终止进程 ${pid}...`, 'info');
     await invoke('kill_process', {
-      serverName: serverStore.activeServer!.name,
+      serverName: props.server.name,
       pid: pid
     });
     ui.showToast(`进程 ${pid} 已终止`, 'success');
@@ -68,25 +68,40 @@ const handleKill = async (pid: string, name: string) => {
   }
 };
 
-onMounted(() => {
-  // fetchProcesses is now handled by the immediate watch
+const startPolling = () => {
+  if (pollTimer) return;
   pollTimer = setInterval(fetchProcesses, 5000);
+};
+
+const stopPolling = () => {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+};
+
+onMounted(() => {
+  if (props.server.status === 'online') {
+    fetchProcesses();
+    startPolling();
+  }
 });
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer);
+  stopPolling();
 });
 
-watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
-  if (newId && newStatus === 'online') {
+watch(() => props.server.status, (newStatus) => {
+  if (newStatus === 'online') {
     fetchProcesses();
+    startPolling();
   } else {
-    if (pollTimer) clearInterval(pollTimer);
-    processes.value = [];
+    stopPolling();
     error.value = '服务器未连接';
     isLoading.value = false;
+    processes.value = [];
   }
-}, { immediate: true });
+});
 
 const filteredProcesses = ref<any[]>([]);
 watch([processes, searchQuery], () => {
@@ -94,8 +109,8 @@ watch([processes, searchQuery], () => {
     filteredProcesses.value = processes.value;
   } else {
     const q = searchQuery.value.toLowerCase();
-    filteredProcesses.value = processes.value.filter(p => 
-      p.command.toLowerCase().includes(q) || 
+    filteredProcesses.value = processes.value.filter(p =>
+      p.command.toLowerCase().includes(q) ||
       p.pid.toString().includes(q) ||
       p.user.toLowerCase().includes(q)
     );
@@ -114,13 +129,13 @@ watch([processes, searchQuery], () => {
         </h2>
         <p class="text-slate-400 text-xs mt-1">查看并管理系统高资源占用进程 (每5秒更新)</p>
       </div>
-      
+
       <div class="flex items-center space-x-3">
         <div class="relative">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" :size="16" />
-          <input 
+          <input
             v-model="searchQuery"
-            type="text" 
+            type="text"
             placeholder="搜索进程名、PID、用户..."
             class="bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-64 transition-all"
           />
@@ -160,8 +175,8 @@ watch([processes, searchQuery], () => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/50">
-            <tr 
-              v-for="proc in filteredProcesses" 
+            <tr
+              v-for="proc in filteredProcesses"
               :key="proc.pid"
               class="hover:bg-slate-800/30 transition-colors group"
             >
@@ -183,7 +198,7 @@ watch([processes, searchQuery], () => {
                 {{ proc.command }}
               </td>
               <td class="px-6 py-4 text-right">
-                <button 
+                <button
                   @click="handleKill(proc.pid, proc.command)"
                   class="p-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
                   title="终止进程"
@@ -194,7 +209,7 @@ watch([processes, searchQuery], () => {
             </tr>
           </tbody>
         </table>
-        
+
         <div v-if="filteredProcesses.length === 0" class="py-20 text-center text-slate-500">
           <p>没有找到相关进程</p>
         </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import type { Server } from '../stores/server';
 import { invoke } from '@tauri-apps/api/core';
 import { useScriptsStore, type Script } from '../stores/scripts';
 import { useServerStore } from '../stores/server';
@@ -7,6 +8,7 @@ import { useSettingsStore } from '../stores/settings';
 import { useUIStore } from '../stores/ui';
 import { Plus, Play, Trash2, Edit2, ShieldAlert, Cpu, Sparkles, Terminal, AlertTriangle, Key, X, Layers, MonitorPlay, ChevronDown } from 'lucide-vue-next';
 
+const props = defineProps<{ server: Server }>();
 const scriptsStore = useScriptsStore();
 const serverStore = useServerStore();
 const settingsStore = useSettingsStore();
@@ -57,7 +59,7 @@ const handleContextMenu = (e: MouseEvent, script: Script) => {
   contextMenuPos.value = { x: e.clientX, y: e.clientY };
   contextMenuScript.value = script;
   showContextMenu.value = true;
-  
+
   const closeMenu = () => {
     showContextMenu.value = false;
     window.removeEventListener('click', closeMenu);
@@ -117,7 +119,7 @@ const editScript = () => {
   editingDescription.value = activeScript.value.description;
   editingContent.value = activeScript.value.content;
   editingSkipWarning.value = activeScript.value.skip_warning;
-  
+
   // Require password
   requirePassword(() => {
     isEditing.value = true;
@@ -126,7 +128,7 @@ const editScript = () => {
 
 const requirePassword = (action: () => void) => {
   if (!scriptsStore.masterPassword) {
-    ui.showToast('请先在系统设置中配置“安全保护密码”才能编辑或执行脚本。', 'warning');
+    ui.showToast('请先在系统设置中配置"安全保护密码"才能编辑或执行脚本。', 'warning');
     return;
   }
   pendingAction.value = action;
@@ -205,7 +207,7 @@ const analyzeScript = async () => {
       scriptContent: editingContent.value,
       apiKey: settingsStore.deepseekApiKey
     });
-    
+
     let desc = result.description;
     if (result.has_password_leak) {
       desc = '[AI 警告: 检测到可能存在的明文密码或 Token]\n' + desc;
@@ -222,19 +224,15 @@ const onlineServers = computed(() => {
   return serverStore.servers.filter(s => s.status === 'online');
 });
 
-watch([activeScript, isEditing, () => serverStore.activeServerId, isMultiExecMode], ([newScript, newEditing, newServerId, multiMode]) => {
+watch([activeScript, isEditing, isMultiExecMode], ([newScript, newEditing, multiMode]) => {
   executionLogs.value = [];
   if (newScript || newEditing) {
     if (multiMode) {
-      if (newServerId && !selectedTargetIds.value.includes(newServerId)) {
-        selectedTargetIds.value.push(newServerId);
+      if (!selectedTargetIds.value.includes(props.server.id)) {
+        selectedTargetIds.value.push(props.server.id);
       }
     } else {
-      if (newServerId) {
-        selectedTargetIds.value = [newServerId];
-      } else {
-        selectedTargetIds.value = [];
-      }
+      selectedTargetIds.value = [props.server.id];
     }
   }
 });
@@ -251,7 +249,7 @@ const handleRunClick = async () => {
     }
     offlineTargets = serverStore.servers.filter(s => selectedTargetIds.value.includes(s.id) && s.status !== 'online');
   } else {
-    const activeServer = serverStore.activeServer;
+    const activeServer = props.server;
     if (!activeServer) {
       ui.showToast('没有选中任何服务器', 'warning');
       return;
@@ -264,17 +262,17 @@ const handleRunClick = async () => {
   if (offlineTargets.length > 0) {
     const confirm = await ui.showConfirm({
       title: '服务器未连接',
-      message: isMultiExecMode.value 
+      message: isMultiExecMode.value
         ? `有 ${offlineTargets.length} 台目标服务器尚未连接，是否立即连接并执行脚本？`
         : `目标服务器 [${offlineTargets[0].name}] 尚未连接，是否立即连接并执行脚本？`,
       type: 'info'
     });
-    
+
     if (!confirm) return;
-    
+
     isExecuting.value = true;
     executionLogs.value = [];
-    
+
     let hasFailedConnection = false;
     for (const server of offlineTargets) {
       executionLogs.value.push({ server: '系统提示', output: `正在连接到 ${server.name}...` });
@@ -284,13 +282,13 @@ const handleRunClick = async () => {
         hasFailedConnection = true;
       }
     }
-    
+
     if (hasFailedConnection) {
       isExecuting.value = false;
       ui.showToast('部分或全部服务器连接失败，已终止执行。', 'error');
       return;
     }
-    
+
     executionLogs.value = [];
     isExecuting.value = false;
   }
@@ -311,14 +309,14 @@ const handleRunClick = async () => {
 const executeScript = async () => {
   showRunConfirm.value = false;
   if (!activeScript.value) return;
-  
+
   isExecuting.value = true;
   executionLogs.value = [];
 
   const scriptContent = activeScript.value.content;
-  const targets = isMultiExecMode.value 
+  const targets = isMultiExecMode.value
     ? serverStore.servers.filter(s => selectedTargetIds.value.includes(s.id))
-    : serverStore.servers.filter(s => s.id === serverStore.activeServerId);
+    : [props.server];
 
   if (targets.length === 0) {
     executionLogs.value.push({ server: '系统提示', output: '没有匹配的目标服务器执行此脚本。', error: true });
@@ -345,7 +343,7 @@ const executeScript = async () => {
 
 <template>
   <div class="h-full flex text-slate-200 relative overflow-hidden bg-slate-900/50">
-    
+
     <!-- Main Script List Area (Takes full width) -->
     <div class="flex-1 flex flex-col h-full z-10">
       <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-[#1e293b]/40 shadow-sm backdrop-blur-sm z-10">
@@ -367,17 +365,17 @@ const executeScript = async () => {
           <Cpu :size="64" class="opacity-20" />
           <p class="text-lg">暂无脚本，点击右上角新建</p>
         </div>
-        
+
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
           <div v-for="script in scriptsStore.scripts" :key="script.id"
             @click="selectScript(script, false)"
             @contextmenu.prevent="handleContextMenu($event, script)"
             class="group flex flex-col bg-slate-800/40 hover:bg-slate-800/80 p-5 rounded-2xl cursor-pointer transition-all duration-300 border border-slate-700/50 hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 relative h-40">
-            
+
             <div class="flex justify-between items-start mb-3">
               <div class="font-bold text-slate-200 text-base group-hover:text-blue-400 transition-colors line-clamp-1 pr-8">{{ script.name }}</div>
             </div>
-            
+
             <div class="text-sm text-slate-400 line-clamp-2 flex-1 leading-relaxed">
               {{ script.description || '暂无描述' }}
             </div>
@@ -415,7 +413,7 @@ const executeScript = async () => {
       leave-to-class="translate-x-full"
     >
       <div v-if="activeScript || isEditing" class="absolute right-0 top-0 bottom-0 w-[85%] bg-[#0f172a] shadow-[-20px_0_50px_rgba(0,0,0,0.6)] z-50 flex flex-col border-l border-slate-700/50">
-        
+
         <!-- Drawer Header -->
         <div class="h-16 border-b border-slate-800 px-8 flex items-center justify-between bg-[#1e293b]/50 backdrop-blur-md">
           <div class="flex-1 flex items-center" v-if="isEditing">
@@ -428,14 +426,14 @@ const executeScript = async () => {
               <span v-else class="text-[10px] px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-400 border border-slate-600/50 flex items-center space-x-1">
                 <span>单机模式</span>
                 <span class="w-1 h-1 bg-slate-500 rounded-full mx-1"></span>
-                <span :class="serverStore.activeServer ? 'text-blue-400' : 'text-amber-500'">{{ serverStore.activeServer?.name || '未选择服务器' }}</span>
+                <span class="text-blue-400">{{ props.server.name }}</span>
               </span>
             </h2>
             <button @click="editScript" class="text-blue-400 hover:text-white text-sm flex items-center space-x-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors">
               <Edit2 :size="14" /><span>编辑脚本</span>
             </button>
           </div>
-          
+
           <div class="flex items-center space-x-4" v-if="isEditing">
              <button @click="saveScript" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-500/20">保存脚本</button>
              <div class="w-px h-6 bg-slate-700"></div>
@@ -457,10 +455,10 @@ const executeScript = async () => {
 
         <!-- Content Split (Left Editor, Right Execution) -->
         <div class="flex-1 flex overflow-hidden">
-          
+
           <!-- Left: Code & Info -->
           <div class="flex-1 flex flex-col border-r border-slate-800 p-8 overflow-y-auto space-y-6">
-            
+
             <!-- Description -->
             <div class="space-y-2">
               <div class="flex justify-between items-center">
@@ -470,12 +468,12 @@ const executeScript = async () => {
                   <span>{{ isAnalyzing ? 'AI 分析中...' : 'AI 智能生成描述' }}</span>
                 </button>
               </div>
-              
+
               <textarea v-if="isEditing" v-model="editingDescription" rows="3" placeholder="描述脚本的作用和执行后的后果..." class="w-full bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 text-sm text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 resize-none font-mono leading-relaxed transition-all"></textarea>
               <div v-else class="w-full bg-slate-800/20 border border-slate-700/30 rounded-xl p-4 text-sm text-slate-400 whitespace-pre-wrap font-mono min-h-[5rem] leading-relaxed">
                 {{ activeScript?.description || '暂无描述' }}
               </div>
-              
+
               <!-- Risk Highlight -->
               <div v-if="(isEditing ? editingDescription : activeScript?.description)?.includes('明文密码')" class="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start space-x-3 mt-4">
                 <AlertTriangle class="text-red-500 shrink-0 mt-0.5" :size="18" />
@@ -508,7 +506,7 @@ const executeScript = async () => {
                 </div>
                 <ChevronDown :size="16" class="text-slate-500 transition-transform duration-300" :class="{'rotate-180': isTargetListExpanded}" />
               </button>
-              
+
               <div v-show="isTargetListExpanded" class="px-6 pb-6 pt-2">
                 <div class="space-y-2.5 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                   <div v-if="serverStore.servers.length === 0" class="text-sm text-amber-500/70 italic p-3 bg-amber-500/5 rounded-lg border border-amber-500/10">
@@ -518,7 +516,7 @@ const executeScript = async () => {
                     <input type="checkbox" :value="server.id" v-model="selectedTargetIds" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-blue-500/20 focus:ring-offset-slate-900 cursor-pointer" @click.stop />
                     <span class="text-slate-300 font-medium">{{ server.name }}</span>
                     <div class="flex-1"></div>
-                    <div class="w-2 h-2 rounded-full" 
+                    <div class="w-2 h-2 rounded-full"
                          :class="server.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-600 shadow-none'"></div>
                   </div>
                 </div>
@@ -531,16 +529,16 @@ const executeScript = async () => {
                   <span>执行结果</span>
                   <span v-if="!isMultiExecMode" class="px-2 py-0.5 bg-slate-800 rounded-md text-[10px] normal-case text-slate-500 border border-slate-700/50 flex items-center space-x-1">
                     <span>目标:</span>
-                    <span :class="serverStore.activeServer ? 'text-emerald-400' : 'text-amber-500/70'">{{ serverStore.activeServer?.name || '无目标' }}</span>
+                    <span class="text-emerald-400">{{ props.server.name }}</span>
                   </span>
                 </h4>
               </div>
-              
+
               <div v-if="isExecuting" class="flex items-center justify-center space-x-3 text-blue-400 text-sm animate-pulse my-8 bg-blue-500/5 py-4 rounded-xl border border-blue-500/10">
                 <Cpu class="animate-spin" :size="20" />
                 <span class="font-medium">正在下发并执行...</span>
               </div>
-              
+
               <div v-if="executionLogs.length === 0 && !isExecuting" class="flex-1 flex flex-col items-center justify-center text-slate-600 space-y-3 opacity-50">
                 <Terminal :size="32" />
                 <p class="text-sm">尚未执行</p>
@@ -569,17 +567,17 @@ const executeScript = async () => {
             <Key class="text-rose-500" :size="24" />
           </div>
           <h3 class="text-lg font-bold text-center text-white mb-2">安全验证</h3>
-          <p class="text-xs text-slate-400 text-center mb-6">请输入“安全保护密码”以继续操作。</p>
-          
-          <input 
-            v-model="passwordInput" 
-            type="password" 
-            placeholder="输入安全密码..." 
+          <p class="text-xs text-slate-400 text-center mb-6">请输入"安全保护密码"以继续操作。</p>
+
+          <input
+            v-model="passwordInput"
+            type="password"
+            placeholder="输入安全密码..."
             class="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 px-4 mb-2 focus:outline-none focus:border-rose-500 text-sm text-slate-200"
             @keyup.enter="confirmPassword"
           />
           <p v-if="passwordError" class="text-xs text-rose-500 text-center mb-4">{{ passwordError }}</p>
-          
+
           <div class="flex space-x-3 mt-6">
             <button @click="showPasswordModal = false" class="flex-1 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition-colors text-sm">取消</button>
             <button @click="confirmPassword" class="flex-1 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold transition-all shadow-lg shadow-rose-600/20 text-sm">验证</button>
@@ -602,14 +600,14 @@ const executeScript = async () => {
               <p class="text-xs text-slate-400">请确认即将执行的脚本后果</p>
             </div>
           </div>
-          
+
           <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-6">
             <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">脚本用途及后果描述</h4>
             <div class="text-sm text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
               {{ activeScript?.description || '暂无描述' }}
             </div>
           </div>
-          
+
           <div class="flex justify-end space-x-3">
             <button @click="showRunConfirm = false" class="px-4 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition-colors text-sm">取消</button>
             <button @click="executeScript" :class="['px-6 py-2 rounded-lg text-white font-bold transition-all shadow-lg text-sm flex items-center space-x-2', hasPasswordLeak ? 'bg-red-600 hover:bg-red-500 shadow-red-600/20' : 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20']">
@@ -623,7 +621,7 @@ const executeScript = async () => {
 
     <!-- Context Menu -->
     <Teleport to="body">
-      <div v-if="showContextMenu" 
+      <div v-if="showContextMenu"
         class="fixed z-[100] w-48 bg-[#1e293b]/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
       >
@@ -631,25 +629,25 @@ const executeScript = async () => {
           <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest line-clamp-1">{{ contextMenuScript?.name }}</div>
         </div>
         <button @click="handleContextSingleRun" class="w-full text-left px-3 py-2 text-xs hover:bg-emerald-500/10 text-slate-300 hover:text-emerald-400 transition-all flex items-center space-x-2 group/item">
-          <MonitorPlay :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+          <MonitorPlay :size="14" class="group-hover/item:scale-110 transition-transform" />
           <span class="group-hover/item:translate-x-1 transition-transform">单机执行</span>
         </button>
         <button @click="handleContextMultiRun" class="w-full text-left px-3 py-2 text-xs hover:bg-blue-500/10 text-slate-300 hover:text-blue-400 transition-all flex items-center space-x-2 group/item">
-          <Layers :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+          <Layers :size="14" class="group-hover/item:scale-110 transition-transform" />
           <span class="group-hover/item:translate-x-1 transition-transform">多机执行</span>
         </button>
-        
+
         <div class="h-px bg-slate-700/50 my-1"></div>
-        
+
         <button @click="handleContextEdit" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-          <Edit2 :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+          <Edit2 :size="14" class="group-hover/item:scale-110 transition-transform" />
           <span class="group-hover/item:translate-x-1 transition-transform">编辑脚本</span>
         </button>
-        
+
         <div class="h-px bg-slate-700/50 my-1"></div>
-        
+
         <button @click="handleContextDelete" class="w-full text-left px-3 py-2 text-xs hover:bg-red-600/90 text-red-500 hover:text-white transition-all flex items-center space-x-2 group/item">
-          <Trash2 :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+          <Trash2 :size="14" class="group-hover/item:scale-110 transition-transform" />
           <span class="group-hover/item:translate-x-1 transition-transform">删除脚本</span>
         </button>
       </div>

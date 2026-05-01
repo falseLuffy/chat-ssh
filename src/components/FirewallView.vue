@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import type { Server } from '../stores/server';
 import { invoke } from '@tauri-apps/api/core';
-import { useServerStore } from '../stores/server';
 import { useUIStore } from '../stores/ui';
-import { 
-  ShieldCheck, 
-  Search, 
-  RefreshCw, 
-  Plus, 
-  Trash2, 
-  Loader2, 
+import {
+  ShieldCheck,
+  Search,
+  RefreshCw,
+  Plus,
+  Trash2,
+  Loader2,
   ShieldAlert,
   Globe,
   Lock,
@@ -17,7 +17,7 @@ import {
   AlertTriangle
 } from 'lucide-vue-next';
 
-const serverStore = useServerStore();
+const props = defineProps<{ server: Server }>();
 const ui = useUIStore();
 const rules = ref<any[]>([]);
 const isLoading = ref(true);
@@ -25,7 +25,7 @@ const searchQuery = ref('');
 const error = ref('');
 
 const fetchRules = async () => {
-  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') {
+  if (!props.server || props.server.status !== 'online') {
     error.value = '服务器未连接';
     isLoading.value = false;
     return;
@@ -34,7 +34,7 @@ const fetchRules = async () => {
   try {
     isLoading.value = true;
     const result = await invoke<any[]>('get_firewall_rules', {
-      serverName: serverStore.activeServer.name
+      serverName: props.server.name
     });
     rules.value = result;
     error.value = '';
@@ -54,7 +54,7 @@ const handleAddRule = async () => {
   try {
     ui.showToast(`正在放行端口 ${port}...`, 'info');
     await invoke('manage_firewall_rule', {
-      serverName: serverStore.activeServer!.name,
+      serverName: props.server.name,
       port: port,
       action: 'allow'
     });
@@ -69,7 +69,7 @@ const handleDeleteRule = async (to: string) => {
   try {
     ui.showToast(`正在删除规则 ${to}...`, 'info');
     await invoke('manage_firewall_rule', {
-      serverName: serverStore.activeServer!.name,
+      serverName: props.server.name,
       port: to,
       action: 'delete allow'
     });
@@ -81,18 +81,19 @@ const handleDeleteRule = async (to: string) => {
 };
 
 onMounted(() => {
-  // fetchRules is now handled by the immediate watch
+  if (props.server.status === 'online') {
+    fetchRules();
+  }
 });
 
-watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
-  if (newId && newStatus === 'online') {
+watch(() => props.server.status, (newStatus) => {
+  if (newStatus === 'online') {
     fetchRules();
   } else {
-    rules.value = [];
     error.value = '服务器未连接';
     isLoading.value = false;
   }
-}, { immediate: true });
+});
 
 const filteredRules = ref<any[]>([]);
 watch([rules, searchQuery], () => {
@@ -100,8 +101,8 @@ watch([rules, searchQuery], () => {
     filteredRules.value = rules.value;
   } else {
     const q = searchQuery.value.toLowerCase();
-    filteredRules.value = rules.value.filter(r => 
-      r.to.toLowerCase().includes(q) || 
+    filteredRules.value = rules.value.filter(r =>
+      r.to.toLowerCase().includes(q) ||
       r.from.toLowerCase().includes(q) ||
       r.action.toLowerCase().includes(q)
     );
@@ -120,7 +121,7 @@ watch([rules, searchQuery], () => {
         </h2>
         <p class="text-slate-400 text-xs mt-1">管理远程服务器的网络访问规则与端口开放状态</p>
       </div>
-      
+
       <div class="flex items-center space-x-3">
         <button @click="handleAddRule" class="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-600/20">
           <Plus :size="16" />
@@ -158,8 +159,8 @@ watch([rules, searchQuery], () => {
 
     <div v-else class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div 
-          v-for="rule in filteredRules" 
+        <div
+          v-for="rule in filteredRules"
           :key="rule.to + rule.from"
           class="bg-[#1e293b]/50 backdrop-blur-xl border border-slate-800 p-5 rounded-2xl flex items-center justify-between group hover:border-blue-500/30 transition-all"
         >
@@ -177,8 +178,8 @@ watch([rules, searchQuery], () => {
               </div>
             </div>
           </div>
-          
-          <button 
+
+          <button
             @click="handleDeleteRule(rule.to)"
             class="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-slate-500 hover:text-red-500 rounded-lg transition-all"
             title="删除规则"
@@ -196,14 +197,14 @@ watch([rules, searchQuery], () => {
             这通常意味着您的服务器尚未安装或启用本地防火墙工具（如 UFW 或 Firewalld）。<br/>
             在这种状态下，服务器系统层面不会拦截任何入站流量。
           </p>
-          
+
           <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl w-full">
             <div class="bg-blue-500/5 border border-blue-500/20 p-4 rounded-2xl text-left">
               <p class="text-xs font-bold text-blue-400 flex items-center">
                 <Globe :size="14" class="mr-2" /> 云服务商安全组
               </p>
               <p class="text-[10px] text-slate-500 mt-2">
-                即使本地没有防火墙，您的云服务商（如阿里云、腾讯云）通常在外部设有一道“安全组”墙。请务必前往云控制台确认相关端口已放行。
+                即使本地没有防火墙，您的云服务商（如阿里云、腾讯云）通常在外部设有一道"安全组"墙。请务必前往云控制台确认相关端口已放行。
               </p>
             </div>
             <div class="bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-2xl text-left">
@@ -215,7 +216,7 @@ watch([rules, searchQuery], () => {
               </p>
             </div>
           </div>
-          
+
           <div class="mt-8 flex space-x-4">
             <button @click="fetchRules" class="text-xs text-blue-500 hover:underline">重新扫描</button>
             <span class="text-slate-700">|</span>
@@ -237,5 +238,8 @@ watch([rules, searchQuery], () => {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 </style>

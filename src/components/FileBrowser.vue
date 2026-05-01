@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch, defineProps } from 'vue';
+import type { Server } from '../stores/server';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile, stat, readDir } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
@@ -9,6 +10,7 @@ import { useUIStore } from '../stores/ui';
 import { File, Folder, Upload, Download, Trash2, RefreshCw, Loader2, ChevronLeft, Home, HardDrive, ShieldAlert, LayoutGrid, List, Plus, Copy, ChevronDown, Terminal } from 'lucide-vue-next';
 import InputModal from './InputModal.vue';
 
+const props = defineProps<{ server: Server; activeTab: string }>();
 const serverStore = useServerStore();
 const ui = useUIStore();
 const currentPath = ref('/root');
@@ -17,8 +19,6 @@ const isLoading = ref(false);
 const isUploading = ref(false);
 const isDownloading = ref(false);
 const errorMessage = ref('');
-const viewMode = ref<'grid' | 'list'>((localStorage.getItem('ssh_view_mode') as 'grid' | 'list') || 'list');
-const isDragging = ref(false);
 
 // Conflict resolution state
 const globalConflictAction = ref<any>(null);
@@ -38,14 +38,15 @@ interface LogEntry {
   message: string;
 }
 const logs = ref<LogEntry[]>([]);
-let logIdCounter = 0;
+const logIdCounter = ref(0);
 const logPanelOpen = ref(true);
 const logContainer = ref<HTMLElement | null>(null);
 
 const addLog = (message: string, level: LogLevel = 'info') => {
   const now = new Date();
   const time = now.toTimeString().slice(0, 8);
-  logs.value.push({ id: ++logIdCounter, time, level, message });
+  logIdCounter.value += 1;
+  logs.value.push({ id: logIdCounter.value, time, level, message });
   // Keep last 200 entries
   if (logs.value.length > 200) logs.value.splice(0, logs.value.length - 200);
   nextTick(() => {
@@ -58,12 +59,13 @@ const addLog = (message: string, level: LogLevel = 'info') => {
 const clearLogs = () => { logs.value = []; };
 
 // Persist view mode changes
+const viewMode = ref<'grid' | 'list'>((localStorage.getItem('ssh_view_mode') as 'grid' | 'list') || 'list');
 watch(viewMode, (newMode) => {
   localStorage.setItem('ssh_view_mode', newMode);
 });
 
 // Selection State
-const selectedFiles = ref<Set<string>>(new Set());
+const selectedFiles = ref(new Set<string>());
 
 const isSelected = (name: string) => selectedFiles.value.has(name);
 
@@ -110,7 +112,7 @@ const inputModalConfig = ref({
 });
 
 const loadFiles = async () => {
-  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') {
+  if (!props.server || props.server.status !== 'online') {
     files.value = [];
     return;
   }
@@ -120,7 +122,7 @@ const loadFiles = async () => {
   files.value = []; // Clear current list while loading
   try {
     const results = await invoke<any[]>('list_remote_files', {
-      serverName: serverStore.activeServer.name,
+      serverName: props.server.name,
       path: currentPath.value,
     });
     files.value = results;
@@ -143,8 +145,8 @@ const navigateTo = (path: string) => {
 };
 
 const handleFolderClick = (folderName: string) => {
-  const newPath = currentPath.value === '/' 
-    ? `/${folderName}` 
+  const newPath = currentPath.value === '/'
+    ? `/${folderName}`
     : `${currentPath.value}/${folderName}`;
   navigateTo(newPath);
 };
@@ -167,10 +169,10 @@ const formatSize = (bytes: number) => {
 
 // Check if a remote path exists
 const checkRemoteExists = async (remotePath: string): Promise<boolean> => {
-  if (!serverStore.activeServer) return false;
+  if (!props.server) return false;
   try {
     const result = await invoke<string>('execute_remote_command', {
-      server_name: serverStore.activeServer.name,
+      server_name: props.server.name,
       command: `[ -e "${remotePath}" ] && echo "exists"`
     });
     return result.trim() === 'exists';
@@ -186,10 +188,10 @@ const resolvePathConflict = async (remotePath: string): Promise<{ finalPath: str
   }
 
   const fileName = remotePath.split('/').pop() || 'file';
-  
+
   // Use global choice if "Apply to all" was checked
   let action = globalConflictAction.value;
-  
+
   if (!applyConflictToAll.value || !action) {
     const result = await ui.showConflict({ fileName });
     action = result.action;
@@ -222,10 +224,10 @@ const resolvePathConflict = async (remotePath: string): Promise<{ finalPath: str
 
 // Low-level: upload one file to an explicit remote path, no list refresh
 const uploadSingleFile = async (content: Uint8Array, remoteFullPath: string): Promise<boolean> => {
-  if (!serverStore.activeServer) return false;
+  if (!props.server) return false;
   try {
     await invoke('upload_to_server', {
-      serverName: serverStore.activeServer.name,
+      serverName: props.server.name,
       remotePath: remoteFullPath,
       fileContent: Array.from(content),
     });
@@ -239,16 +241,16 @@ const uploadSingleFile = async (content: Uint8Array, remoteFullPath: string): Pr
 
 // Upload a single file into currentPath, then refresh list
 const uploadFile = async (fileName: string, content: Uint8Array) => {
-  if (!serverStore.activeServer) return;
+  if (!props.server) return;
   isUploading.value = true;
   resetConflictState(); // New task starts
-  
+
   const initialRemotePath = currentPath.value === '/'
     ? `/${fileName}`
     : `${currentPath.value}/${fileName}`;
-  
+
   const { finalPath, skip } = await resolvePathConflict(initialRemotePath);
-  
+
   if (skip) {
     addLog(`跳过上传: ${fileName}`, 'info');
     isUploading.value = false;
@@ -278,12 +280,12 @@ const uploadDirectoryRecursive = async (
   remotePath: string,
   counters: { ok: number; fail: number }
 ): Promise<void> => {
-  if (!serverStore.activeServer) return;
+  if (!props.server) return;
 
   // Create remote directory
   try {
     await invoke('execute_remote_command', {
-      serverName: serverStore.activeServer.name,
+      serverName: props.server.name,
       command: `mkdir -p "${remotePath}"`
     });
     addLog(`📁 创建目录: ${remotePath}`, 'info');
@@ -315,7 +317,7 @@ const uploadDirectoryRecursive = async (
         addLog(`跳过文件: ${entry.name}`, 'info');
         continue;
       }
-      
+
       addLog(`上传中: ${entry.name} → ${finalPath}`, 'info');
       try {
         const content = await readFile(localEntry);
@@ -330,7 +332,7 @@ const uploadDirectoryRecursive = async (
 };
 
 const handleUpload = async () => {
-  if (!serverStore.activeServer) return;
+  if (!props.server) return;
 
   try {
     const selected = await open({
@@ -368,22 +370,24 @@ const setupDragDropListener = async () => {
         isDragging.value = false;
       } else if (event.payload.type === 'drop') {
         isDragging.value = false;
-        if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') return;
+        // Only process drop if this is the active server's FileBrowser
+        if (serverStore.activeServerId !== props.server.id) return;
+        if (!props.server || props.server.status !== 'online') return;
         const paths: string[] = event.payload.paths ?? [];
         let totalOk = 0;
         let totalFail = 0;
         isUploading.value = true;
         resetConflictState(); // Start fresh for new drop
-        
+
         for (const filePath of paths) {
           try {
             const fileStat = await stat(filePath);
             if (fileStat.isDirectory) {
               const dirName = filePath.replace(/\\/g, '/').split('/').pop() || 'upload';
-              const remoteDirPath = currentPath.value === '/' 
-                ? `/${dirName}` 
+              const remoteDirPath = currentPath.value === '/'
+                ? `/${dirName}`
                 : `${currentPath.value}/${dirName}`;
-              
+
               const { finalPath, skip } = await resolvePathConflict(remoteDirPath);
               if (skip) {
                 addLog(`跳过目录: ${dirName}`, 'info');
@@ -398,10 +402,10 @@ const setupDragDropListener = async () => {
               addLog(`📁 目录 "${dirName}" 完成: 成功 ${counters.ok} 个，失败 ${counters.fail} 个`, counters.fail > 0 ? 'error' : 'success');
             } else if (fileStat.isFile) {
               const fileName = filePath.replace(/\\/g, '/').split('/').pop() || 'uploaded_file';
-              const initialRemotePath = currentPath.value === '/' 
-                ? `/${fileName}` 
+              const initialRemotePath = currentPath.value === '/'
+                ? `/${fileName}`
                 : `${currentPath.value}/${fileName}`;
-              
+
               const { finalPath, skip } = await resolvePathConflict(initialRemotePath);
               if (skip) {
                 addLog(`跳过文件: ${fileName}`, 'info');
@@ -421,7 +425,7 @@ const setupDragDropListener = async () => {
             totalFail++;
           }
         }
-        
+
         isUploading.value = false;
         if (totalOk > 0 || totalFail > 0) {
           addLog(`— 拖拽上传完成: 成功 ${totalOk} 个文件，失败 ${totalFail} 个`, totalFail > 0 ? 'error' : 'success');
@@ -435,7 +439,7 @@ const setupDragDropListener = async () => {
 };
 
 const handleDownload = async (file: any) => {
-  if (!serverStore.activeServer || file.is_dir) return;
+  if (!props.server || file.is_dir) return;
 
   try {
     const savePath = await save({
@@ -445,12 +449,12 @@ const handleDownload = async (file: any) => {
 
     if (savePath) {
       isDownloading.value = true;
-      const remotePath = currentPath.value.endsWith('/') 
-        ? `${currentPath.value}${file.name}` 
+      const remotePath = currentPath.value.endsWith('/')
+        ? `${currentPath.value}${file.name}`
         : `${currentPath.value}/${file.name}`;
-      
+
       const content = await invoke<number[]>('download_remote_file', {
-        serverName: serverStore.activeServer.name,
+        serverName: props.server.name,
         path: remotePath,
       });
 
@@ -464,23 +468,23 @@ const handleDownload = async (file: any) => {
 };
 
 const handleDelete = async (file: any) => {
-  if (!serverStore.activeServer) return;
+  if (!props.server) return;
 
   const confirm = await ui.showConfirm({ title: '删除项目', message: `确定要删除 ${file.name} 吗？`, type: 'danger' });
   if (!confirm) return;
 
-  const remotePath = currentPath.value.endsWith('/') 
-    ? `${currentPath.value}${file.name}` 
+  const remotePath = currentPath.value.endsWith('/')
+    ? `${currentPath.value}${file.name}`
     : `${currentPath.value}/${file.name}`;
 
   addLog(`删除中: ${remotePath}${file.is_dir ? ' (文件夹)' : ''}`, 'info');
   try {
     await invoke('delete_remote_file', {
-      serverName: serverStore.activeServer.name,
+      serverName: props.server.name,
       path: remotePath,
       isDir: file.is_dir,
     });
-    
+
     addLog(`✓ 已删除: ${remotePath}`, 'success');
     ui.showToast(`✓ 已删除: ${file.name}`, 'success');
     await loadFiles();
@@ -496,9 +500,7 @@ const handleContextMenu = (e: MouseEvent, file: any = null) => {
   contextMenuPos.value = { x: e.clientX, y: e.clientY };
   contextMenuFile.value = file;
   showContextMenu.value = true;
-  contextMenuFile.value = file;
-  showContextMenu.value = true;
-  
+
   // Close menu when clicking elsewhere
   const closeMenu = () => {
     showContextMenu.value = false;
@@ -508,8 +510,8 @@ const handleContextMenu = (e: MouseEvent, file: any = null) => {
 };
 
 const copyPath = (file: any) => {
-  const path = currentPath.value === '/' 
-    ? `/${file.name}` 
+  const path = currentPath.value === '/'
+    ? `/${file.name}`
     : `${currentPath.value}/${file.name}`;
   navigator.clipboard.writeText(path);
 };
@@ -537,23 +539,23 @@ const handleNewFolder = () => {
 };
 
 const handleModalConfirm = async (value: string) => {
-  if (!serverStore.activeServer) return;
-  
+  if (!props.server) return;
+
   try {
     if (inputModalConfig.value.type === 'rename') {
       const file = inputModalConfig.value.target;
       const oldPath = currentPath.value === '/' ? `/${file.name}` : `${currentPath.value}/${file.name}`;
       const newPath = currentPath.value === '/' ? `/${value}` : `${currentPath.value}/${value}`;
-      
+
       await invoke('execute_remote_command', {
-        serverName: serverStore.activeServer.name,
+        serverName: props.server.name,
         command: `mv "${oldPath}" "${newPath}"`
       });
       ui.showToast(`✓ 已重命名为: ${value}`, 'success');
     } else {
       const newDirPath = currentPath.value === '/' ? `/${value}` : `${currentPath.value}/${value}`;
       await invoke('execute_remote_command', {
-        serverName: serverStore.activeServer.name,
+        serverName: props.server.name,
         command: `mkdir -p "${newDirPath}"`
       });
       ui.showToast(`✓ 已创建文件夹: ${value}`, 'success');
@@ -567,10 +569,10 @@ const handleModalConfirm = async (value: string) => {
   }
 };
 
-const props = defineProps<{ activeTab: string }>();
+// Drag state (visual only)
+const isDragging = ref(false);
 
 onMounted(() => {
-  loadFiles();
   setupDragDropListener();
   window.addEventListener('keydown', handleKeyDown);
 });
@@ -589,13 +591,14 @@ watch(() => props.activeTab, async (newTab) => {
   }
 });
 
-watch(() => serverStore.activeServerId, loadFiles);
-
-watch(() => serverStore.activeServer?.status, (newStatus) => {
+watch(() => props.server.status, (newStatus) => {
   if (newStatus === 'online') {
     loadFiles();
+  } else {
+    files.value = [];
+    errorMessage.value = '服务器未连接';
   }
-});
+}, { immediate: true });
 </script>
 
 <template>
@@ -617,11 +620,11 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
         <HardDrive :size="14" class="text-slate-500 mr-2 flex-shrink-0" />
         <span class="text-xs font-mono text-slate-300 truncate">{{ currentPath }}</span>
       </div>
-      
+
       <div class="flex items-center space-x-2">
-        <button 
+        <button
           @click="handleUpload"
-          :disabled="isUploading || !serverStore.activeServer || serverStore.activeServer.status !== 'online'"
+          :disabled="isUploading || !props.server || props.server.status !== 'online'"
           class="flex items-center space-x-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-blue-600/20"
         >
           <Loader2 v-if="isUploading" class="animate-spin" :size="14" />
@@ -635,14 +638,14 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
         <div class="h-6 w-px bg-slate-800 mx-1"></div>
 
         <div class="flex items-center bg-slate-800/50 p-1 rounded-lg">
-          <button 
-            @click="viewMode = 'grid'" 
+          <button
+            @click="viewMode = 'grid'"
             :class="['p-1.5 rounded-md transition-all', viewMode === 'grid' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300']"
           >
             <LayoutGrid :size="14" />
           </button>
-          <button 
-            @click="viewMode = 'list'" 
+          <button
+            @click="viewMode = 'list'"
             :class="['p-1.5 rounded-md transition-all', viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300']"
           >
             <List :size="14" />
@@ -652,7 +655,7 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
     </div>
 
     <!-- Empty State / Error State -->
-    <div v-if="(!serverStore.activeServer || serverStore.activeServer.status !== 'online') || errorMessage" class="flex-1 flex flex-col items-center justify-center p-10 text-center">
+    <div v-if="(!props.server || props.server.status !== 'online') || errorMessage" class="flex-1 flex flex-col items-center justify-center p-10 text-center">
       <div class="w-20 h-20 bg-slate-800/50 rounded-3xl flex items-center justify-center mb-6 border border-slate-700/50">
         <ShieldAlert v-if="errorMessage" :size="40" class="text-red-500" />
         <HardDrive v-else :size="40" class="text-slate-600" />
@@ -663,8 +666,8 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
     </div>
 
     <!-- File List -->
-    <div v-else 
-      @contextmenu="handleContextMenu($event)" 
+    <div v-else
+      @contextmenu="handleContextMenu($event)"
       @dragover.prevent="isDragging = true"
       @dragleave.prevent="isDragging = false"
       @drop.prevent="handleDrop"
@@ -682,7 +685,7 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
       <div v-if="isLoading && files.length === 0" class="h-full flex items-center justify-center">
         <Loader2 class="animate-spin text-blue-500" :size="32" />
       </div>
-      
+
       <div v-else-if="files.length === 0" class="h-full flex flex-col items-center justify-center py-20 opacity-50">
         <Folder :size="48" class="text-slate-700 mb-4" />
         <span class="text-sm text-slate-500">目录为空</span>
@@ -691,7 +694,7 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
       <!-- Grid View -->
       <div v-else-if="viewMode === 'grid'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <!-- Parent Directory Entry -->
-        <div v-if="currentPath !== '/'" 
+        <div v-if="currentPath !== '/'"
           @dblclick="goBack"
           class="group flex flex-col p-4 bg-slate-800/20 border border-dashed border-slate-700/50 rounded-2xl hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer relative"
         >
@@ -706,8 +709,8 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
           </div>
         </div>
 
-        <div 
-          v-for="file in files" 
+        <div
+          v-for="file in files"
           :key="file.name"
           @click.exact="toggleSelect(file.name, false)"
           @click.ctrl="toggleSelect(file.name, true)"
@@ -727,7 +730,7 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
               <File v-else :size="24" />
             </div>
           </div>
-          
+
           <div class="min-w-0">
             <div class="text-sm font-bold truncate text-slate-200 group-hover:text-white transition-colors">{{ file.name }}</div>
             <div class="flex items-center mt-1 text-[10px] text-slate-500 space-x-2">
@@ -746,7 +749,7 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
           <div class="w-24 text-right">大小</div>
           <div class="w-32 text-right">修改日期</div>
         </div>
-        
+
         <!-- Parent Directory Item -->
         <div v-if="currentPath !== '/'" @dblclick="goBack" class="flex items-center px-4 py-3 hover:bg-slate-800/50 border-b border-slate-800/30 group transition-colors cursor-pointer italic text-slate-500">
           <div class="flex-1 flex items-center min-w-0">
@@ -759,8 +762,8 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
           <div class="w-32 text-right text-[10px]">-</div>
         </div>
 
-        <div 
-          v-for="file in files" 
+        <div
+          v-for="file in files"
           :key="file.name"
           @click.exact="toggleSelect(file.name, false)"
           @click.ctrl="toggleSelect(file.name, true)"
@@ -786,12 +789,12 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
         </div>
       </div>
     </div>
-    
+
     <!-- Status Bar -->
-    <div v-if="serverStore.activeServer && serverStore.activeServer.status === 'online'" class="h-8 border-t border-slate-800 bg-slate-900/80 px-4 flex items-center justify-between flex-shrink-0">
+    <div v-if="props.server && props.server.status === 'online'" class="h-8 border-t border-slate-800 bg-slate-900/80 px-4 flex items-center justify-between flex-shrink-0">
       <div class="text-[10px] text-slate-500 flex items-center">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
-        已连接: {{ serverStore.activeServer.name }}
+        已连接: {{ props.server.name }}
       </div>
       <div class="text-[10px] flex items-center space-x-3">
         <span v-if="selectedFiles.size > 0" class="text-blue-400 font-medium">
@@ -850,57 +853,57 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
     </div>
 
     <Teleport to="body">
-      <div v-if="showContextMenu" 
+      <div v-if="showContextMenu"
         class="fixed z-[100] w-48 bg-[#1e293b]/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
       >
         <template v-if="contextMenuFile">
           <button v-if="contextMenuFile.is_dir" @click="handleFolderClick(contextMenuFile.name)" class="w-full text-left px-3 py-2 text-xs hover:bg-blue-600 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <Folder :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <Folder :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">进入文件夹</span>
           </button>
           <button v-else @click="handleDownload(contextMenuFile)" class="w-full text-left px-3 py-2 text-xs hover:bg-blue-600 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <Download :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <Download :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">下载文件</span>
           </button>
-          
+
           <div class="h-px bg-slate-700/50 my-1"></div>
-          
+
           <button @click="copyPath(contextMenuFile)" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <Copy :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <Copy :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">复制绝对路径</span>
           </button>
-          
+
           <button @click="handleRename(contextMenuFile)" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <RefreshCw :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <RefreshCw :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">重命名</span>
           </button>
 
           <div class="h-px bg-slate-700/50 my-1"></div>
-          
+
           <button @click="handleDelete(contextMenuFile)" class="w-full text-left px-3 py-2 text-xs hover:bg-red-600/90 text-red-500 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <Trash2 :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <Trash2 :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">删除项目</span>
           </button>
         </template>
         <template v-else>
           <button @click="handleNewFolder" class="w-full text-left px-3 py-2 text-xs hover:bg-blue-600 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <Plus :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <Plus :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">新建文件夹</span>
           </button>
           <button @click="handleUpload" class="w-full text-left px-3 py-2 text-xs hover:bg-blue-600 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <Upload :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <Upload :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">上传文件</span>
           </button>
           <button @click="loadFiles" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <RefreshCw :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <RefreshCw :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">刷新列表</span>
           </button>
-          
+
           <div class="h-px bg-slate-700/50 my-1"></div>
-          
+
           <button @click="navigateTo('/root')" class="w-full text-left px-3 py-2 text-xs hover:bg-slate-800/80 text-slate-300 hover:text-white transition-all flex items-center space-x-2 group/item">
-            <Home :size="14" class="group-hover/item:scale-110 transition-transform" /> 
+            <Home :size="14" class="group-hover/item:scale-110 transition-transform" />
             <span class="group-hover/item:translate-x-1 transition-transform">回到 Root 目录</span>
           </button>
         </template>
@@ -908,7 +911,7 @@ watch(() => serverStore.activeServer?.status, (newStatus) => {
     </Teleport>
 
     <!-- Input Modal -->
-    <InputModal 
+    <InputModal
       v-if="showInputModal"
       :show="showInputModal"
       :title="inputModalConfig.title"

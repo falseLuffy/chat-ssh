@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import type { Server } from '../stores/server';
 import { invoke } from '@tauri-apps/api/core';
-import { useServerStore } from '../stores/server';
 import { useUIStore } from '../stores/ui';
-import { 
-  Settings, 
-  Play, 
-  Square, 
-  RefreshCw, 
-  Search, 
-  Loader2, 
+import {
+  Settings,
+  Play,
+  Square,
+  RefreshCw,
+  Search,
+  Loader2,
   ShieldAlert,
   Activity,
   CheckCircle2,
@@ -17,7 +17,7 @@ import {
   AlertCircle
 } from 'lucide-vue-next';
 
-const serverStore = useServerStore();
+const props = defineProps<{ server: Server }>();
 const ui = useUIStore();
 const services = ref<any[]>([]);
 const isLoading = ref(true);
@@ -25,7 +25,7 @@ const searchQuery = ref('');
 const error = ref('');
 
 const fetchServices = async () => {
-  if (!serverStore.activeServer || serverStore.activeServer.status !== 'online') {
+  if (!props.server || props.server.status !== 'online') {
     error.value = '服务器未连接';
     isLoading.value = false;
     return;
@@ -34,7 +34,7 @@ const fetchServices = async () => {
   try {
     isLoading.value = true;
     const result = await invoke<any[]>('get_system_services', {
-      serverName: serverStore.activeServer.name
+      serverName: props.server.name
     });
     services.value = result;
     error.value = '';
@@ -47,12 +47,12 @@ const fetchServices = async () => {
 };
 
 const handleAction = async (name: string, action: string) => {
-  if (!serverStore.activeServer) return;
+  if (!props.server) return;
 
   try {
     ui.showToast(`正在执行 ${action}: ${name}...`, 'info');
     await invoke('manage_system_service', {
-      serverName: serverStore.activeServer.name,
+      serverName: props.server.name,
       serviceName: name,
       action: action
     });
@@ -64,19 +64,19 @@ const handleAction = async (name: string, action: string) => {
 };
 
 onMounted(() => {
-  // fetchServices is now handled by the immediate watch
+  if (props.server.status === 'online') {
+    fetchServices();
+  }
 });
 
-watch([() => serverStore.activeServerId, () => serverStore.activeServer?.status], ([newId, newStatus]) => {
-  if (newId && newStatus === 'online') {
+watch(() => props.server.status, (newStatus) => {
+  if (newStatus === 'online') {
     fetchServices();
   } else {
-    services.value = [];
     error.value = '服务器未连接';
     isLoading.value = false;
   }
-}, { immediate: true });
-
+});
 
 const filteredServices = ref<any[]>([]);
 watch([services, searchQuery], () => {
@@ -84,8 +84,8 @@ watch([services, searchQuery], () => {
     filteredServices.value = services.value;
   } else {
     const q = searchQuery.value.toLowerCase();
-    filteredServices.value = services.value.filter(s => 
-      s.name.toLowerCase().includes(q) || 
+    filteredServices.value = services.value.filter(s =>
+      s.name.toLowerCase().includes(q) ||
       s.description.toLowerCase().includes(q)
     );
   }
@@ -121,13 +121,13 @@ const getStatusColor = (active: string) => {
         </h2>
         <p class="text-slate-400 text-xs mt-1">管理远程服务器上的系统单元与后台服务</p>
       </div>
-      
+
       <div class="flex items-center space-x-3">
         <div class="relative">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" :size="16" />
-          <input 
+          <input
             v-model="searchQuery"
-            type="text" 
+            type="text"
             placeholder="搜索服务名称、描述..."
             class="bg-slate-800/50 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-64 transition-all"
           />
@@ -167,8 +167,8 @@ const getStatusColor = (active: string) => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/50">
-            <tr 
-              v-for="service in filteredServices" 
+            <tr
+              v-for="service in filteredServices"
               :key="service.name"
               class="hover:bg-slate-800/30 transition-colors group"
             >
@@ -190,7 +190,7 @@ const getStatusColor = (active: string) => {
               </td>
               <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2">
-                  <button 
+                  <button
                     v-if="service.active !== 'active'"
                     @click="handleAction(service.name, 'start')"
                     class="p-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-all"
@@ -198,7 +198,7 @@ const getStatusColor = (active: string) => {
                   >
                     <Play :size="14" />
                   </button>
-                  <button 
+                  <button
                     v-if="service.active === 'active'"
                     @click="handleAction(service.name, 'stop')"
                     class="p-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
@@ -206,7 +206,7 @@ const getStatusColor = (active: string) => {
                   >
                     <Square :size="14" />
                   </button>
-                  <button 
+                  <button
                     @click="handleAction(service.name, 'restart')"
                     class="p-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white rounded-lg transition-all"
                     title="重启"
@@ -218,7 +218,7 @@ const getStatusColor = (active: string) => {
             </tr>
           </tbody>
         </table>
-        
+
         <div v-if="filteredServices.length === 0" class="py-20 text-center text-slate-500">
           <p>没有找到相关服务</p>
         </div>

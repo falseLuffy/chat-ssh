@@ -101,12 +101,22 @@ async fn open_terminal(
                         "data": data
                     })).unwrap();
                 }
-                Ok(_) => {}, // No data yet (or EOF)
+                Ok(_) => {
+                    // EOF: connection closed by server
+                    println!("SSH connection closed for: {}", server_name);
+                    let _ = window.emit("ssh-disconnect", serde_json::json!({
+                        "server": server_name
+                    }));
+                    break;
+                }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     // Normal, no data to read
                 }
                 Err(e) => {
-                    println!("Read error on {}: {}", server_name, e);
+                    println!("SSH connection error on {}: {}", server_name, e);
+                    let _ = window.emit("ssh-disconnect", serde_json::json!({
+                        "server": server_name
+                    }));
                     break;
                 }
             }
@@ -130,6 +140,9 @@ async fn open_terminal(
                         }
                         Err(e) => {
                             println!("Write error on {}: {}", server_name, e);
+                            let _ = window.emit("ssh-disconnect", serde_json::json!({
+                                "server": server_name
+                            }));
                             break;
                         }
                     }
