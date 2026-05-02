@@ -1,5 +1,6 @@
 mod deepseek;
 mod ssh_manager;
+mod inspection;
 
 use std::sync::{Mutex, Arc};
 use std::collections::HashMap;
@@ -13,7 +14,7 @@ struct AppState {
 
 #[tauri::command]
 async fn disconnect_ssh(
-    name: &str, 
+    name: &str,
     state: State<'_, AppState>
 ) -> Result<(), String> {
     {
@@ -29,10 +30,10 @@ async fn disconnect_ssh(
 
 #[tauri::command]
 async fn connect_ssh(
-    name: &str, 
-    host: &str, 
-    user: &str, 
-    pass: &str, 
+    name: &str,
+    host: &str,
+    user: &str,
+    pass: &str,
     state: State<'_, AppState>
 ) -> Result<String, String> {
     let session = ssh_manager::SshSession::connect(host, user, Some(pass))?;
@@ -72,7 +73,7 @@ async fn open_terminal(
 
     let mut channel = session.start_shell(cols, rows)?;
     let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
-    
+
     {
         let mut senders = state.senders.lock().unwrap();
         senders.insert(server_name.clone(), tx);
@@ -82,7 +83,7 @@ async fn open_terminal(
     std::thread::spawn(move || {
         let mut buffer = [0u8; 4096];
         session.set_blocking(false);
-        
+
         println!("Terminal thread started for: {}", server_name);
         let session_mutex = session.get_session();
 
@@ -148,7 +149,7 @@ async fn open_terminal(
                     }
                 }
             }
-            
+
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         println!("Terminal thread exited for: {}", server_name);
@@ -190,7 +191,7 @@ async fn import_xshell_sessions(paths: Vec<String>) -> Result<Vec<xshell::Xshell
     for path_str in paths {
         let path = std::path::Path::new(&path_str);
         let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
-        
+
         if ext == "xts" {
             let mut xts_sessions = xshell::parse_xts_file(path)?;
             results.append(&mut xts_sessions);
@@ -424,6 +425,35 @@ async fn diagnose_server_issue(
     Ok(content.to_string())
 }
 
+// ============================================================
+// INSPECTION COMMANDS
+// ============================================================
+
+#[tauri::command]
+async fn run_inspection(
+    server_name: String,
+    server_id: i32,
+    rules: Vec<inspection::InspectionRule>,
+    triggered_by: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<inspection::InspectionCheckResult>, String> {
+    inspection::run_inspection(
+        &server_name,
+        &state.sessions,
+        &rules,
+        server_id,
+        &triggered_by,
+    )
+}
+
+#[tauri::command]
+async fn generate_inspection_summary(
+    checks: Vec<inspection::InspectionCheckResult>,
+    api_key: String,
+) -> Result<String, String> {
+    inspection::generate_summary_logic(&checks, &api_key).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -445,8 +475,13 @@ pub fn run() {
                     window.center()?;
                 }
             }
+
             // 通知前端后端已就绪（此时 SQL migration 已完成）
             app.emit("backend-ready", ()).ok();
+
+            // Start inspection scheduler (emits scheduler-tick every 60s)
+            inspection::start_scheduler(app.handle().clone());
+
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
@@ -476,6 +511,12 @@ pub fn run() {
                         description: "add_scripts_and_password",
                         sql: "CREATE TABLE IF NOT EXISTS scripts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, content TEXT NOT NULL, skip_warning BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP); INSERT OR IGNORE INTO config (key, value) VALUES ('master_password', '');",
                         kind: tauri_plugin_sql::MigrationKind::Up,
+                    },
+                    tauri_plugin_sql::Migration {
+                        version: 5,
+                        description: "add_inspection_tables",
+                        sql: include_str!("../migrations/005_inspection.sql"),
+                        kind: tauri_plugin_sql::MigrationKind::Up,
                     }
                 ])
                 .build()
@@ -484,11 +525,11 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             disconnect_ssh,
-            connect_ssh, 
+            connect_ssh,
             upload_to_server,
             open_terminal,
             write_to_terminal,
-            generate_ai_command, 
+            generate_ai_command,
             review_command_risk,
             import_xshell_sessions,
             list_remote_files,
@@ -505,7 +546,10 @@ pub fn run() {
             diagnose_server_issue,
             kill_process,
             get_firewall_rules,
-            manage_firewall_rule
+            manage_firewall_rule,
+            // Inspection
+            run_inspection,
+            generate_inspection_summary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
