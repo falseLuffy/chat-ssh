@@ -23,6 +23,13 @@
   const showSettingsModal = ref(false);
 
   onMounted(async () => {
+    // 等待后端就绪信号（SQL migration 完成后触发）
+    await new Promise<void>((resolve) => {
+      listen('backend-ready', () => resolve());
+      // 兜底：1 秒后还没收到信号也继续，避免事件丢失导致卡死
+      setTimeout(() => resolve(), 1000);
+    });
+
     // Parallel init
     await Promise.all([
       settingsStore.loadSettings(),

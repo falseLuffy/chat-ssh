@@ -437,14 +437,16 @@ pub fn run() {
                     let size = monitor.size();
                     let scale_factor = monitor.scale_factor();
                     let logical_size = size.to_logical::<f64>(scale_factor);
-                    
+
                     let width = logical_size.width * 0.5;
                     let height = logical_size.height * 0.5;
-                    
+
                     window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }))?;
                     window.center()?;
                 }
             }
+            // 通知前端后端已就绪（此时 SQL migration 已完成）
+            app.emit("backend-ready", ()).ok();
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
