@@ -93,6 +93,8 @@ const handleKeyDown = (e: KeyboardEvent) => {
     selectAll();
   } else if (e.key === 'Escape') {
     clearSelection();
+  } else if (e.key === 'Delete' && selectedFiles.value.size > 0) {
+    handleDeleteSelected();
   }
 };
 
@@ -493,6 +495,54 @@ const handleDelete = async (file: any) => {
     addLog(`✗ 删除失败: ${remotePath} — ${String(error)}`, 'error');
     ui.showToast(`删除失败: ${String(error)}`, 'error', 5000);
   }
+};
+
+const handleDeleteSelected = async () => {
+  if (!props.server || selectedFiles.value.size === 0) return;
+
+  const selected = files.value.filter((f: any) => selectedFiles.value.has(f.name));
+  if (selected.length === 0) return;
+
+  const message = selected.length === 1
+    ? `确定要删除 ${selected[0].name} 吗？`
+    : `确定要删除选中的 ${selected.length} 个文件吗？`;
+
+  const confirm = await ui.showConfirm({ title: '删除项目', message, type: 'danger' });
+  if (!confirm) return;
+
+  let successCount = 0;
+  let failCount = 0;
+
+  await Promise.allSettled(selected.map(async (file: any) => {
+    const remotePath = currentPath.value.endsWith('/')
+      ? `${currentPath.value}${file.name}`
+      : `${currentPath.value}/${file.name}`;
+
+    addLog(`删除中: ${remotePath}${file.is_dir ? ' (文件夹)' : ''}`, 'info');
+    try {
+      await invoke('delete_remote_file', {
+        serverName: props.server.name,
+        path: remotePath,
+        isDir: file.is_dir,
+      });
+      addLog(`✓ 已删除: ${remotePath}`, 'success');
+      successCount++;
+    } catch (error) {
+      console.error('删除失败:', error);
+      addLog(`✗ 删除失败: ${remotePath} — ${String(error)}`, 'error');
+      failCount++;
+    }
+  }));
+
+  if (failCount === 0) {
+    const msg = selected.length === 1 ? `✓ 已删除: ${selected[0].name}` : `✓ 已删除 ${successCount} 个文件`;
+    ui.showToast(msg, 'success');
+  } else {
+    ui.showToast(`删除完成: ${successCount} 成功, ${failCount} 失败`, 'error', 5000);
+  }
+
+  await loadFiles();
+  clearSelection();
 };
 
 const handleContextMenu = (e: MouseEvent, file: any = null) => {

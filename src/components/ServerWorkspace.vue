@@ -21,8 +21,8 @@ defineProps<{
       <TerminalView :server="server" :active-tab="activeTab" />
     </div>
     <!-- 其他视图用 v-show 没问题 -->
-    <ServerManagement v-show="activeTab === 'management'" :server="server" />
     <FileBrowser v-show="activeTab === 'files'" :server="server" :active-tab="activeTab" />
+    <ServerManagement v-show="activeTab === 'management'" :server="server" />
     <OpsView v-show="activeTab === 'ops'" :server="server" />
   </div>
 </template>

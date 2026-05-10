@@ -1,11 +1,38 @@
 <script setup lang="ts">
 import { useUIStore } from '../../stores/ui';
 import { AlertTriangle, Info } from 'lucide-vue-next';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 
 const ui = useUIStore();
+const confirmBtn = ref<HTMLButtonElement | null>(null);
 
 const handleConfirm = () => ui.resolveConfirm(true);
 const handleCancel = () => ui.resolveConfirm(false);
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (!ui.confirmState.isOpen) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleConfirm();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    handleCancel();
+  }
+};
+
+watch(() => ui.confirmState.isOpen, (open) => {
+  if (open) {
+    setTimeout(() => confirmBtn.value?.focus(), 50);
+  }
+});
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <template>
@@ -43,7 +70,7 @@ const handleCancel = () => ui.resolveConfirm(false);
               <button @click="handleCancel" class="flex-1 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 transition-colors text-sm font-medium">
                 {{ ui.confirmState.options.cancelText || '取消' }}
               </button>
-              <button @click="handleConfirm" :class="['flex-1 py-2.5 rounded-xl text-white font-bold transition-all shadow-lg text-sm', ui.confirmState.options.type === 'danger' ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20']">
+              <button ref="confirmBtn" autofocus @click="handleConfirm" :class="['flex-1 py-2.5 rounded-xl text-white font-bold transition-all shadow-lg text-sm', ui.confirmState.options.type === 'danger' ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20']">
                 {{ ui.confirmState.options.confirmText || '确认' }}
               </button>
             </div>

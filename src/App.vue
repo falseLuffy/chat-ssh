@@ -68,15 +68,15 @@
             <Terminal :size="16" />
             <span class="text-sm font-medium">终端</span>
           </button>
-          <button @click="activeTab = 'management'"
-            :class="['flex items-center space-x-2 px-3 py-1 rounded-md transition-all', activeTab === 'management' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'hover:bg-slate-800']">
-            <LayoutDashboard :size="16" />
-            <span class="text-sm font-medium">运维</span>
-          </button>
           <button @click="activeTab = 'files'"
             :class="['flex items-center space-x-2 px-3 py-1 rounded-md transition-all', activeTab === 'files' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'hover:bg-slate-800']">
             <Server :size="16" />
             <span class="text-sm font-medium">文件</span>
+          </button>
+          <button @click="activeTab = 'management'"
+            :class="['flex items-center space-x-2 px-3 py-1 rounded-md transition-all', activeTab === 'management' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'hover:bg-slate-800']">
+            <LayoutDashboard :size="16" />
+            <span class="text-sm font-medium">运维</span>
           </button>
           <button @click="activeTab = 'ops'"
             :class="['flex items-center space-x-2 px-3 py-1 rounded-md transition-all', activeTab === 'ops' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'hover:bg-slate-800']">
