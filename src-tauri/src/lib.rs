@@ -10,6 +10,7 @@ use std::io::{Read, Write};
 struct AppState {
     sessions: Mutex<HashMap<String, Arc<ssh_manager::SshSession>>>,
     senders: Mutex<HashMap<String, std::sync::mpsc::Sender<Vec<u8>>>>,
+    script_senders: Mutex<HashMap<String, std::sync::mpsc::Sender<Vec<u8>>>>,
 }
 
 #[tauri::command]
@@ -24,6 +25,12 @@ async fn disconnect_ssh(
     {
         let mut senders = state.senders.lock().unwrap();
         senders.remove(name);
+    }
+    {
+        let mut script_senders = state.script_senders.lock().unwrap();
+        if let Some(tx) = script_senders.remove(name) {
+            let _ = tx.send(vec![]);
+        }
     }
     Ok(())
 }
@@ -171,6 +178,130 @@ async fn write_to_terminal(
     } else {
         Err("Terminal session not found".to_string())
     }
+}
+
+// ============================================================
+// SCRIPT INTERACTIVE TERMINAL COMMANDS
+// ============================================================
+
+#[tauri::command]
+async fn open_script_terminal(
+    server_name: String,
+    cols: u32,
+    rows: u32,
+    window: tauri::Window,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let session = {
+        let sessions = state.sessions.lock().unwrap();
+        sessions.get(&server_name).cloned().ok_or("Server not connected")?
+    };
+
+    let mut channel = session.start_shell(cols, rows)?;
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+
+    {
+        let mut script_senders = state.script_senders.lock().unwrap();
+        script_senders.insert(server_name.clone(), tx);
+    }
+
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 4096];
+        session.set_blocking(false);
+
+        println!("Script terminal thread started for: {}", server_name);
+        let session_mutex = session.get_session();
+
+        loop {
+            let read_res = {
+                let _lock = session_mutex.lock().unwrap();
+                channel.read(&mut buffer)
+            };
+
+            match read_res {
+                Ok(n) if n > 0 => {
+                    let data = buffer[..n].to_vec();
+                    window.emit("script-output", serde_json::json!({
+                        "server": server_name,
+                        "data": data
+                    })).unwrap();
+                }
+                Ok(_) => {
+                    println!("Script terminal EOF for: {}", server_name);
+                    let _ = window.emit("script-output", serde_json::json!({
+                        "server": server_name,
+                        "data": []
+                    }));
+                    break;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // No data available
+                }
+                Err(e) => {
+                    println!("Script terminal error on {}: {}", server_name, e);
+                    break;
+                }
+            }
+
+            if let Ok(input) = rx.try_recv() {
+                if input.is_empty() {
+                    // Empty data signals close
+                    break;
+                }
+                let mut written = 0;
+                while written < input.len() {
+                    let write_res = {
+                        let _lock = session_mutex.lock().unwrap();
+                        channel.write(&input[written..])
+                    };
+
+                    match write_res {
+                        Ok(n) => { written += n; }
+                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                            std::thread::sleep(std::time::Duration::from_millis(1));
+                        }
+                        Err(e) => {
+                            println!("Write error on script terminal {}: {}", server_name, e);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        println!("Script terminal thread exited for: {}", server_name);
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn write_script_stdin(
+    server_name: String,
+    data: Vec<u8>,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let senders = state.script_senders.lock().unwrap();
+    if let Some(tx) = senders.get(&server_name) {
+        tx.send(data).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Script terminal session not found".to_string())
+    }
+}
+
+#[tauri::command]
+async fn close_script_terminal(
+    server_name: String,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let mut senders = state.script_senders.lock().unwrap();
+    // Send empty data to signal the thread to exit
+    if let Some(tx) = senders.remove(&server_name) {
+        let _ = tx.send(vec![]);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -460,6 +591,7 @@ pub fn run() {
         .manage(AppState {
             sessions: Mutex::new(HashMap::new()),
             senders: Mutex::new(HashMap::new()),
+            script_senders: Mutex::new(HashMap::new()),
         })
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
@@ -529,6 +661,9 @@ pub fn run() {
             upload_to_server,
             open_terminal,
             write_to_terminal,
+            open_script_terminal,
+            write_script_stdin,
+            close_script_terminal,
             generate_ai_command,
             review_command_risk,
             import_xshell_sessions,

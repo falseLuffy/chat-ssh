@@ -2,6 +2,7 @@
 import { ref, nextTick, onMounted, onUnmounted, watch, defineProps } from 'vue';
 import type { Server } from '../stores/server';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import { openPath } from '@tauri-apps/plugin-opener';
 import { readFile, writeFile, stat, readDir } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
@@ -144,6 +145,8 @@ const navigateTo = (path: string) => {
   currentPath.value = normalizedPath;
   clearSelection();
   loadFiles();
+  // Persist per-server last path
+  localStorage.setItem(`filebrowser_path_${props.server.id}`, normalizedPath);
 };
 
 const handleFolderClick = (folderName: string) => {
@@ -241,34 +244,7 @@ const uploadSingleFile = async (content: Uint8Array, remoteFullPath: string): Pr
   }
 };
 
-// Upload a single file into currentPath, then refresh list
-const uploadFile = async (fileName: string, content: Uint8Array) => {
-  if (!props.server) return;
-  isUploading.value = true;
-  resetConflictState(); // New task starts
-
-  const initialRemotePath = currentPath.value === '/'
-    ? `/${fileName}`
-    : `${currentPath.value}/${fileName}`;
-
-  const { finalPath, skip } = await resolvePathConflict(initialRemotePath);
-
-  if (skip) {
-    addLog(`跳过上传: ${fileName}`, 'info');
-    isUploading.value = false;
-    return;
-  }
-
-  addLog(`上传中: ${fileName} (${formatSize(content.length)}) → ${currentPath.value}`, 'info');
-  const ok = await uploadSingleFile(content, finalPath);
-  if (ok) {
-    ui.showToast(`✓ 上传成功: ${fileName}`, 'success');
-    await loadFiles();
-  } else {
-    ui.showToast(`上传失败: ${fileName}`, 'error', 5000);
-  }
-  isUploading.value = false;
-};
+// uploadFile removed — use processUploadPaths() for batch uploads
 
 // Join local path with an entry name, respecting OS separator
 const joinLocalPath = (base: string, name: string): string => {
@@ -336,19 +312,34 @@ const uploadDirectoryRecursive = async (
 const handleUpload = async () => {
   if (!props.server) return;
 
+  const lastPath = localStorage.getItem(`upload_local_path_${props.server.id}`) || '';
+
   try {
     const selected = await open({
-      multiple: false,
-      title: '选择上传文件',
+      multiple: true,
+      defaultPath: lastPath || undefined,
+      title: '选择文件上传',
     });
 
-    if (selected && typeof selected === 'string') {
-      const content = await readFile(selected);
-      const fileName = selected.split(/[\\/]/).pop() || 'uploaded_file';
-      await uploadFile(fileName, content);
+    if (selected) {
+      const paths = typeof selected === 'string' ? [selected] : selected;
+      await processUploadPaths(paths);
     }
   } catch (error) {
     console.error('选择文件失败:', error);
+  }
+};
+
+const handleOpenExplorer = async () => {
+  const savedPath = localStorage.getItem(`upload_local_path_${props.server.id}`);
+  try {
+    await openPath(savedPath || '');
+    if (savedPath) {
+      ui.showToast('已打开: ' + savedPath, 'info', 3000);
+    }
+  } catch (error) {
+    console.error('打开资源管理器失败:', error);
+    ui.showToast('打开资源管理器失败: ' + String(error), 'error');
   }
 };
 
@@ -356,6 +347,76 @@ const handleDrop = async (e: DragEvent) => {
   isDragging.value = false;
   // Drag-drop in Tauri webview uses system paths via tauri://drag-drop event
   // This handler is kept for visual feedback only; actual upload is in the unlisten below
+};
+
+// Shared: process a list of local paths (files or directories) and upload them
+const processUploadPaths = async (paths: string[]) => {
+  if (!props.server || props.server.status !== 'online') return;
+
+  // Save the parent directory of the first path for this server
+  if (paths.length > 0) {
+    const norm = paths[0].replace(/\\/g, '/');
+    const dir = norm.includes('/') ? norm.substring(0, norm.lastIndexOf('/')) : norm;
+    localStorage.setItem(`upload_local_path_${props.server.id}`, dir.replace(/\//g, '\\'));
+  }
+  let totalOk = 0;
+  let totalFail = 0;
+  isUploading.value = true;
+  resetConflictState();
+
+  for (const filePath of paths) {
+    try {
+      const fileStat = await stat(filePath);
+      if (fileStat.isDirectory) {
+        const dirName = filePath.replace(/\\/g, '/').split('/').pop() || 'upload';
+        const remoteDirPath = currentPath.value === '/'
+          ? `/${dirName}`
+          : `${currentPath.value}/${dirName}`;
+
+        const { finalPath, skip } = await resolvePathConflict(remoteDirPath);
+        if (skip) {
+          addLog(`跳过目录: ${dirName}`, 'info');
+          continue;
+        }
+
+        addLog(`📁 开始上传目录: ${dirName} → ${finalPath}`, 'info');
+        const counters = { ok: 0, fail: 0 };
+        await uploadDirectoryRecursive(filePath, finalPath, counters);
+        totalOk += counters.ok;
+        totalFail += counters.fail;
+        addLog(`📁 目录 "${dirName}" 完成: 成功 ${counters.ok} 个，失败 ${counters.fail} 个`, counters.fail > 0 ? 'error' : 'success');
+      } else if (fileStat.isFile) {
+        const fileName = filePath.replace(/\\/g, '/').split('/').pop() || 'uploaded_file';
+        const initialRemotePath = currentPath.value === '/'
+          ? `/${fileName}`
+          : `${currentPath.value}/${fileName}`;
+
+        const { finalPath, skip } = await resolvePathConflict(initialRemotePath);
+        if (skip) {
+          addLog(`跳过文件: ${fileName}`, 'info');
+          continue;
+        }
+
+        const content = await readFile(filePath);
+        addLog(`上传中: ${fileName} (${formatSize(content.length)}) → ${finalPath}`, 'info');
+        const ok = await uploadSingleFile(content, finalPath);
+        ok ? totalOk++ : totalFail++;
+        if (ok) ui.showToast(`✓ 上传成功: ${fileName}`, 'success');
+      }
+    } catch (err) {
+      console.error('上传失败:', err);
+      ui.showToast(`上传失败: ${String(err)}`, 'error', 5000);
+      addLog(`✗ 上传失败: ${filePath} — ${String(err)}`, 'error');
+      totalFail++;
+    }
+  }
+
+  isUploading.value = false;
+  if (totalOk > 0 || totalFail > 0) {
+    const source = paths.length > 1 ? '批量上传' : '上传';
+    addLog(`— ${source}完成: 成功 ${totalOk} 个，失败 ${totalFail} 个`, totalFail > 0 ? 'error' : 'success');
+  }
+  await loadFiles();
 };
 
 // Tauri drag-drop listener (provides file paths instead of File objects)
@@ -376,63 +437,7 @@ const setupDragDropListener = async () => {
         if (serverStore.activeServerId !== props.server.id) return;
         if (!props.server || props.server.status !== 'online') return;
         const paths: string[] = event.payload.paths ?? [];
-        let totalOk = 0;
-        let totalFail = 0;
-        isUploading.value = true;
-        resetConflictState(); // Start fresh for new drop
-
-        for (const filePath of paths) {
-          try {
-            const fileStat = await stat(filePath);
-            if (fileStat.isDirectory) {
-              const dirName = filePath.replace(/\\/g, '/').split('/').pop() || 'upload';
-              const remoteDirPath = currentPath.value === '/'
-                ? `/${dirName}`
-                : `${currentPath.value}/${dirName}`;
-
-              const { finalPath, skip } = await resolvePathConflict(remoteDirPath);
-              if (skip) {
-                addLog(`跳过目录: ${dirName}`, 'info');
-                continue;
-              }
-
-              addLog(`📁 开始上传目录: ${dirName} → ${finalPath}`, 'info');
-              const counters = { ok: 0, fail: 0 };
-              await uploadDirectoryRecursive(filePath, finalPath, counters);
-              totalOk += counters.ok;
-              totalFail += counters.fail;
-              addLog(`📁 目录 "${dirName}" 完成: 成功 ${counters.ok} 个，失败 ${counters.fail} 个`, counters.fail > 0 ? 'error' : 'success');
-            } else if (fileStat.isFile) {
-              const fileName = filePath.replace(/\\/g, '/').split('/').pop() || 'uploaded_file';
-              const initialRemotePath = currentPath.value === '/'
-                ? `/${fileName}`
-                : `${currentPath.value}/${fileName}`;
-
-              const { finalPath, skip } = await resolvePathConflict(initialRemotePath);
-              if (skip) {
-                addLog(`跳过文件: ${fileName}`, 'info');
-                continue;
-              }
-
-              const content = await readFile(filePath);
-              addLog(`上传中: ${fileName} (${formatSize(content.length)}) → ${finalPath}`, 'info');
-              const ok = await uploadSingleFile(content, finalPath);
-              ok ? totalOk++ : totalFail++;
-              if (ok) ui.showToast(`✓ 上传成功: ${fileName}`, 'success');
-            }
-          } catch (err) {
-            console.error('拖拽失败:', err);
-            ui.showToast(`拖拽上传失败: ${String(err)}`, 'error', 5000);
-            addLog(`✗ 拖拽失败: ${filePath} — ${String(err)}`, 'error');
-            totalFail++;
-          }
-        }
-
-        isUploading.value = false;
-        if (totalOk > 0 || totalFail > 0) {
-          addLog(`— 拖拽上传完成: 成功 ${totalOk} 个文件，失败 ${totalFail} 个`, totalFail > 0 ? 'error' : 'success');
-        }
-        await loadFiles();
+        await processUploadPaths(paths);
       }
     });
   } catch (err) {
@@ -641,14 +646,34 @@ watch(() => props.activeTab, async (newTab) => {
   }
 });
 
+// Persist path when server goes offline (save last browsed path)
 watch(() => props.server.status, (newStatus) => {
   if (newStatus === 'online') {
+    // Restore saved path for this server
+    const saved = localStorage.getItem(`filebrowser_path_${props.server.id}`);
+    if (saved && saved !== currentPath.value) {
+      currentPath.value = saved;
+    }
     loadFiles();
   } else {
     files.value = [];
     errorMessage.value = '服务器未连接';
   }
 }, { immediate: true });
+
+// When switching to a different server, save old path and restore new server's path
+watch(() => props.server.id, (newId, oldId) => {
+  if (oldId === undefined) return; // skip initial mount
+  // Save current path for the server we're leaving
+  localStorage.setItem(`filebrowser_path_${oldId}`, currentPath.value);
+  // Restore saved path for the new server
+  const saved = localStorage.getItem(`filebrowser_path_${newId}`);
+  currentPath.value = saved || '/root';
+  clearSelection();
+  if (props.server.status === 'online') {
+    loadFiles();
+  }
+});
 </script>
 
 <template>
@@ -680,6 +705,15 @@ watch(() => props.server.status, (newStatus) => {
           <Loader2 v-if="isUploading" class="animate-spin" :size="14" />
           <Upload v-else :size="14" />
           <span>上传</span>
+        </button>
+        <button
+          @click="handleOpenExplorer"
+          :disabled="!props.server || props.server.status !== 'online'"
+          class="flex items-center space-x-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 rounded-lg text-xs transition-all"
+          title="打开资源管理器定位到上次上传目录"
+        >
+          <Folder :size="14" />
+          <span>打开</span>
         </button>
         <button @click="loadFiles" :disabled="isLoading" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-all">
           <RefreshCw :class="{ 'animate-spin': isLoading }" :size="16" />

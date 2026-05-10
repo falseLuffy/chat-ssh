@@ -8,6 +8,7 @@ export interface Script {
   description: string;
   content: string;
   skip_warning: boolean;
+  interactive: boolean;
   created_at?: string;
 }
 
@@ -35,6 +36,13 @@ export const useScriptsStore = defineStore('scripts', () => {
       
       await db.execute("INSERT OR IGNORE INTO config (key, value) VALUES ('master_password', '')");
 
+      // Add interactive column if missing (existing databases from before v2)
+      try {
+        await db.execute("ALTER TABLE scripts ADD COLUMN interactive BOOLEAN DEFAULT 0");
+      } catch (_) {
+        // Column already exists — ignore
+      }
+
       const result = await db.select<any[]>('SELECT * FROM scripts ORDER BY created_at DESC');
       scripts.value = result.map(s => ({
         id: s.id,
@@ -42,6 +50,7 @@ export const useScriptsStore = defineStore('scripts', () => {
         description: s.description || '',
         content: s.content,
         skip_warning: s.skip_warning === 1 || s.skip_warning === true,
+        interactive: s.interactive === 1 || s.interactive === true,
         created_at: s.created_at
       }));
 
@@ -61,8 +70,8 @@ export const useScriptsStore = defineStore('scripts', () => {
     try {
       const db = await Database.load('sqlite:chat_ssh.db');
       const result = await db.execute(
-        'INSERT INTO scripts (name, description, content, skip_warning) VALUES (?, ?, ?, ?)',
-        [script.name, script.description, script.content, script.skip_warning ? 1 : 0]
+        'INSERT INTO scripts (name, description, content, skip_warning, interactive) VALUES (?, ?, ?, ?, ?)',
+        [script.name, script.description, script.content, script.skip_warning ? 1 : 0, script.interactive ? 1 : 0]
       );
       const newScript: Script = {
         ...script,
@@ -83,8 +92,8 @@ export const useScriptsStore = defineStore('scripts', () => {
         const db = await Database.load('sqlite:chat_ssh.db');
         const s = { ...scripts.value[index], ...updatedData };
         await db.execute(
-          'UPDATE scripts SET name = ?, description = ?, content = ?, skip_warning = ? WHERE id = ?',
-          [s.name, s.description, s.content, s.skip_warning ? 1 : 0, id]
+          'UPDATE scripts SET name = ?, description = ?, content = ?, skip_warning = ?, interactive = ? WHERE id = ?',
+          [s.name, s.description, s.content, s.skip_warning ? 1 : 0, s.interactive ? 1 : 0, id]
         );
         scripts.value[index] = s;
       } catch (e) {

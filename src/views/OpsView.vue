@@ -7,6 +7,7 @@ import { useServerStore } from '../stores/server';
 import { useSettingsStore } from '../stores/settings';
 import { useUIStore } from '../stores/ui';
 import { Plus, Play, Trash2, Edit2, ShieldAlert, Cpu, Sparkles, Terminal, AlertTriangle, Key, X, Layers, MonitorPlay, ChevronDown } from 'lucide-vue-next';
+import InteractiveTerminal from '../components/InteractiveTerminal.vue';
 
 const props = defineProps<{ server: Server }>();
 const scriptsStore = useScriptsStore();
@@ -25,11 +26,17 @@ const editingName = ref('');
 const editingDescription = ref('');
 const editingContent = ref('');
 const editingSkipWarning = ref(false);
+const editingInteractive = ref(false);
 
 const isAnalyzing = ref(false);
 
 const executionLogs = ref<Array<{ server: string, output: string, error?: boolean }>>([]);
 const isExecuting = ref(false);
+
+// Interactive script terminal mode
+const interactiveMode = ref(false);
+const isScriptActive = ref(false);
+const scriptTerminalRef = ref<InstanceType<typeof InteractiveTerminal> | null>(null);
 
 // Run confirmation modal
 const showRunConfirm = ref(false);
@@ -110,6 +117,7 @@ const createNewScript = () => {
   editingDescription.value = '';
   editingContent.value = '#!/bin/bash\n\n';
   editingSkipWarning.value = false;
+  editingInteractive.value = false;
   isEditing.value = true;
 };
 
@@ -119,6 +127,7 @@ const editScript = () => {
   editingDescription.value = activeScript.value.description;
   editingContent.value = activeScript.value.content;
   editingSkipWarning.value = activeScript.value.skip_warning;
+  editingInteractive.value = activeScript.value.interactive;
 
   // Require password
   requirePassword(() => {
@@ -161,7 +170,8 @@ const saveScript = async () => {
         name: editingName.value,
         description: editingDescription.value,
         content: editingContent.value,
-        skip_warning: editingSkipWarning.value
+        skip_warning: editingSkipWarning.value,
+        interactive: editingInteractive.value,
       });
       activeScript.value = scriptsStore.scripts.find(s => s.id === activeScript.value!.id) || null;
     } else {
@@ -169,7 +179,8 @@ const saveScript = async () => {
         name: editingName.value,
         description: editingDescription.value,
         content: editingContent.value,
-        skip_warning: editingSkipWarning.value
+        skip_warning: editingSkipWarning.value,
+        interactive: editingInteractive.value,
       });
       activeScript.value = newScript;
     }
@@ -225,7 +236,17 @@ const onlineServers = computed(() => {
 });
 
 watch([activeScript, isEditing, isMultiExecMode], ([newScript, newEditing, multiMode]) => {
+  // Close any active interactive session when switching scripts
+  if (isScriptActive.value) {
+    closeInteractiveTerminal();
+  }
   executionLogs.value = [];
+  // Auto-select execution mode based on script type
+  if (newScript?.interactive && !multiMode) {
+    interactiveMode.value = true;
+  } else {
+    interactiveMode.value = false;
+  }
   if (newScript || newEditing) {
     if (multiMode) {
       if (!selectedTargetIds.value.includes(props.server.id)) {
@@ -239,6 +260,11 @@ watch([activeScript, isEditing, isMultiExecMode], ([newScript, newEditing, multi
 
 const handleRunClick = async () => {
   if (!activeScript.value) return;
+
+  if (interactiveMode.value && isMultiExecMode.value) {
+    ui.showToast('交互模式不支持多机执行', 'warning');
+    return;
+  }
 
   let offlineTargets: any[] = [];
 
@@ -306,9 +332,54 @@ const handleRunClick = async () => {
   }
 };
 
+const startInteractiveScript = async () => {
+  if (!activeScript.value) return;
+  isScriptActive.value = true;
+  isExecuting.value = true;
+
+  try {
+    // Open a PTY+shell channel for script execution
+    await invoke('open_script_terminal', {
+      serverName: props.server.name,
+      cols: 80,
+      rows: 24,
+    });
+
+    // Write script content as initial input
+    const scriptContent = activeScript.value.content;
+    await invoke('write_script_stdin', {
+      serverName: props.server.name,
+      data: Array.from(new TextEncoder().encode(scriptContent + '\n')),
+    });
+  } catch (e) {
+    ui.showToast('启动交互式脚本失败: ' + e, 'error');
+    isScriptActive.value = false;
+  } finally {
+    isExecuting.value = false;
+  }
+};
+
+const closeInteractiveTerminal = async () => {
+  try {
+    await invoke('close_script_terminal', {
+      serverName: props.server.name,
+    });
+  } catch (e) {
+    console.error('Failed to close script terminal:', e);
+  }
+  isScriptActive.value = false;
+  interactiveMode.value = false;
+};
+
 const executeScript = async () => {
   showRunConfirm.value = false;
   if (!activeScript.value) return;
+
+  // Interactive mode for single server
+  if (interactiveMode.value && !isMultiExecMode.value) {
+    startInteractiveScript();
+    return;
+  }
 
   isExecuting.value = true;
   executionLogs.value = [];
@@ -491,14 +562,20 @@ const executeScript = async () => {
             </div>
 
             <!-- Options -->
-            <div v-if="isEditing" class="flex items-center space-x-3 pt-2">
-              <input type="checkbox" id="skipWarning" v-model="editingSkipWarning" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-blue-500/20 focus:ring-offset-slate-900" />
-              <label for="skipWarning" class="text-sm text-slate-400 cursor-pointer select-none hover:text-slate-300 transition-colors">我熟悉该脚本，执行前跳过高危告警提示</label>
+            <div v-if="isEditing" class="flex items-center space-x-6 pt-2">
+              <div class="flex items-center space-x-2">
+                <input type="checkbox" id="skipWarning" v-model="editingSkipWarning" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-blue-500/20 focus:ring-offset-slate-900" />
+                <label for="skipWarning" class="text-sm text-slate-400 cursor-pointer select-none hover:text-slate-300 transition-colors">跳过告警</label>
+              </div>
+              <div class="flex items-center space-x-2">
+                <input type="checkbox" id="editingInteractive" v-model="editingInteractive" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-emerald-500/20 focus:ring-offset-slate-900" />
+                <label for="editingInteractive" class="text-sm text-slate-400 cursor-pointer select-none hover:text-slate-300 transition-colors">交互式脚本</label>
+              </div>
             </div>
           </div>
 
-          <!-- Right: Execution & Targets -->
-          <div class="w-[420px] flex flex-col bg-[#0f172a]/80 relative border-l border-slate-800/50">
+          <!-- Right: Execution & Targets (hidden while editing) -->
+          <div v-if="!isEditing" class="w-[420px] flex flex-col bg-[#0f172a]/80 relative border-l border-slate-800/50">
             <div v-if="isMultiExecMode" class="border-b border-slate-800/50 bg-[#1e293b]/30">
               <button @click="isTargetListExpanded = !isTargetListExpanded" class="w-full p-4 flex justify-between items-center hover:bg-slate-800/50 transition-colors focus:outline-none">
                 <div class="flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -532,25 +609,68 @@ const executeScript = async () => {
                     <span class="text-emerald-400">{{ props.server.name }}</span>
                   </span>
                 </h4>
+                <!-- Mode Toggle: only for single-server mode, hidden for interactive scripts -->
+                <div v-if="!isMultiExecMode && props.server.status === 'online' && !activeScript?.interactive" class="flex space-x-1 bg-slate-800/50 rounded-lg p-0.5">
+                  <button @click="interactiveMode = false"
+                    :class="['px-2 py-1 text-xs rounded-md transition-colors', !interactiveMode ? 'bg-blue-500/20 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200']">
+                    文本
+                  </button>
+                  <button @click="interactiveMode = true"
+                    :class="['px-2 py-1 text-xs rounded-md transition-colors', interactiveMode ? 'bg-blue-500/20 text-blue-400 font-medium' : 'text-slate-400 hover:text-slate-200']">
+                    交互
+                  </button>
+                </div>
+                <!-- Interactive script badge -->
+                <div v-else-if="activeScript?.interactive && !isMultiExecMode" class="flex items-center space-x-1 px-2 py-1 text-xs rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span>●</span><span>交互式</span>
+                </div>
               </div>
 
-              <div v-if="isExecuting" class="flex items-center justify-center space-x-3 text-blue-400 text-sm animate-pulse my-8 bg-blue-500/5 py-4 rounded-xl border border-blue-500/10">
-                <Cpu class="animate-spin" :size="20" />
-                <span class="font-medium">正在下发并执行...</span>
-              </div>
+              <!-- Text Mode Execution -->
+              <template v-if="!interactiveMode">
+                <div v-if="isExecuting" class="flex items-center justify-center space-x-3 text-blue-400 text-sm animate-pulse my-8 bg-blue-500/5 py-4 rounded-xl border border-blue-500/10">
+                  <Cpu class="animate-spin" :size="20" />
+                  <span class="font-medium">正在下发并执行...</span>
+                </div>
 
-              <div v-if="executionLogs.length === 0 && !isExecuting" class="flex-1 flex flex-col items-center justify-center text-slate-600 space-y-3 opacity-50">
-                <Terminal :size="32" />
-                <p class="text-sm">尚未执行</p>
-              </div>
+                <div v-if="executionLogs.length === 0 && !isExecuting" class="flex-1 flex flex-col items-center justify-center text-slate-600 space-y-3 opacity-50">
+                  <Terminal :size="32" />
+                  <p class="text-sm">尚未执行</p>
+                </div>
 
-              <div class="space-y-4">
-                <div v-for="(log, idx) in executionLogs" :key="idx" class="border border-slate-700/50 rounded-xl overflow-hidden shadow-sm">
-                  <div :class="['px-4 py-2.5 text-[13px] font-bold border-b border-slate-700/50 flex justify-between items-center', log.error ? 'bg-red-500/10 text-red-400' : 'bg-slate-800/80 text-slate-300']">
-                    <span>[ {{ log.server }} ]</span>
-                    <span :class="log.error ? 'text-red-500' : 'text-emerald-400'">{{ log.error ? '执行失败' : '执行完成' }}</span>
+                <div class="space-y-4">
+                  <div v-for="(log, idx) in executionLogs" :key="idx" class="border border-slate-700/50 rounded-xl overflow-hidden shadow-sm">
+                    <div :class="['px-4 py-2.5 text-[13px] font-bold border-b border-slate-700/50 flex justify-between items-center', log.error ? 'bg-red-500/10 text-red-400' : 'bg-slate-800/80 text-slate-300']">
+                      <span>[ {{ log.server }} ]</span>
+                      <span :class="log.error ? 'text-red-500' : 'text-emerald-400'">{{ log.error ? '执行失败' : '执行完成' }}</span>
+                    </div>
+                    <pre class="p-4 text-[12px] font-mono text-slate-400 whitespace-pre-wrap bg-[#0a0f1c] overflow-x-auto max-h-80 leading-relaxed">{{ log.output || '(无输出)' }}</pre>
                   </div>
-                  <pre class="p-4 text-[12px] font-mono text-slate-400 whitespace-pre-wrap bg-[#0a0f1c] overflow-x-auto max-h-80 leading-relaxed">{{ log.output || '(无输出)' }}</pre>
+                </div>
+              </template>
+
+              <!-- Interactive Terminal Mode -->
+              <div v-if="interactiveMode" class="flex-1 flex flex-col min-h-0 -m-6">
+                <div v-if="!isScriptActive" class="flex-1 flex flex-col items-center justify-center text-slate-600 space-y-3 opacity-50">
+                  <Terminal :size="32" />
+                  <p class="text-sm">点击"一键运行"启动交互式脚本执行</p>
+                </div>
+                <div v-else class="flex-1 flex flex-col min-h-0 p-2">
+                  <div class="flex items-center justify-between mb-2 text-xs text-slate-500 px-2">
+                    <span class="text-emerald-400 font-medium">● 交互会话进行中</span>
+                    <button @click="closeInteractiveTerminal" class="flex items-center space-x-1 px-2 py-1 rounded hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors">
+                      <X :size="14" /><span>关闭会话</span>
+                    </button>
+                  </div>
+                  <div class="flex-1 min-h-[200px] bg-black/40 rounded-xl overflow-hidden border border-slate-700/50">
+                    <InteractiveTerminal
+                      ref="scriptTerminalRef"
+                      :server-name="props.server.name"
+                      read-event="script-output"
+                      write-command="write_script_stdin"
+                      class="w-full h-full"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
