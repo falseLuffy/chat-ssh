@@ -8,7 +8,9 @@
 ![Rust](https://img.shields.io/badge/Rust-1.70+-000000?style=flat-square&logo=rust)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=flat-square&logo=tailwind-css)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)
+![Downloads](https://img.shields.io/github/v/release/falseLuffy/chat-ssh?style=flat-square&label=下载)
 
+[📥 下载](https://github.com/falseLuffy/chat-ssh/releases) •
 [特性](#-核心特性) • [快速开始](#-快速开始) • [使用指南](#-使用指南)
 
 </div>
