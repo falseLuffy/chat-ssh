@@ -18,15 +18,17 @@ export interface ConfirmOptions {
 }
 
 export type ConflictAction = 'overwrite' | 'skip' | 'rename';
+export type ConflictScope = 'once' | 'batch' | 'persistent';
 
 export interface ConflictResult {
   action: ConflictAction;
-  applyToAll: boolean;
+  scope: ConflictScope;
 }
 
 export interface ConflictOptions {
   fileName: string;
   message?: string;
+  persistentAction?: ConflictAction | null;
 }
 
 export const useUIStore = defineStore('ui', () => {
@@ -94,9 +96,9 @@ export const useUIStore = defineStore('ui', () => {
     });
   };
 
-  const resolveConflict = (action: ConflictAction, applyToAll: boolean) => {
+  const resolveConflict = (action: ConflictAction, scope: ConflictScope) => {
     if (conflictState.value.resolve) {
-      conflictState.value.resolve({ action, applyToAll });
+      conflictState.value.resolve({ action, scope });
     }
     conflictState.value.isOpen = false;
     conflictState.value.resolve = null;

@@ -242,6 +242,29 @@ impl SshSession {
         res
     }
 
+    pub fn check_file_exists(&self, remote_path: &str) -> Result<bool, String> {
+        let session = self.session.lock().unwrap();
+        session.set_blocking(true);
+        let res = (|| {
+            let sftp = session.sftp().map_err(|e| format!("SFTP init failed: {}", e))?;
+            match sftp.stat(Path::new(remote_path)) {
+                Ok(_) => Ok(true),
+                Err(e) => {
+                    // SFTP error code 2 = SSH_FX_NO_SUCH_FILE (file not found)
+                    // ssh2 crate maps this to a specific error code
+                    let err_str = e.to_string();
+                    if err_str.contains("No such file") || err_str.contains("does not exist") || err_str.contains(" FX ") {
+                        Ok(false)
+                    } else {
+                        Err(format!("SFTP stat failed: {}", e))
+                    }
+                }
+            }
+        })();
+        session.set_blocking(false);
+        res
+    }
+
     pub fn start_shell(&self, cols: u32, rows: u32) -> Result<ssh2::Channel, String> {
         let session = self.session.lock().unwrap();
         let mut channel = session.channel_session().map_err(|e| e.to_string())?;

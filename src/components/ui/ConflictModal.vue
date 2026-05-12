@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useUIStore, ConflictAction } from '../../stores/ui';
-import { AlertTriangle, HardDrive, SkipForward, RefreshCw, Copy } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
+import { useUIStore, ConflictAction, ConflictScope } from '../../stores/ui';
+import { AlertTriangle, SkipForward, RefreshCw, Copy, ChevronDown } from 'lucide-vue-next';
 
 const ui = useUIStore();
-const applyToAll = ref(false);
+const selectedScope = ref<ConflictScope>(ui.conflictState.options.persistentAction ? 'persistent' : 'once');
+
+const scopeOptions = [
+  { value: 'once' as ConflictScope, label: '仅本次' },
+  { value: 'batch' as ConflictScope, label: '本次任务全部' },
+  { value: 'persistent' as ConflictScope, label: '以后全部上传' },
+];
+
+const hasPersistent = computed(() => !!ui.conflictState.options.persistentAction);
 
 const handleAction = (action: ConflictAction) => {
-  ui.resolveConflict(action, applyToAll.value);
+  ui.resolveConflict(action, selectedScope.value);
 };
 </script>
 
@@ -16,7 +24,7 @@ const handleAction = (action: ConflictAction) => {
     <div v-if="ui.conflictState.isOpen" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <!-- Backdrop -->
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"></div>
-      
+
       <!-- Modal -->
       <div class="relative w-full max-w-md bg-[#1e293b] border border-slate-700 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <div class="p-6">
@@ -33,7 +41,7 @@ const handleAction = (action: ConflictAction) => {
           </div>
 
           <div class="space-y-3">
-            <button 
+            <button
               @click="handleAction('overwrite')"
               class="w-full flex items-center p-4 bg-slate-800/50 hover:bg-red-500/10 border border-slate-700 hover:border-red-500/50 rounded-2xl transition-all group"
             >
@@ -44,7 +52,7 @@ const handleAction = (action: ConflictAction) => {
               </div>
             </button>
 
-            <button 
+            <button
               @click="handleAction('skip')"
               class="w-full flex items-center p-4 bg-slate-800/50 hover:bg-slate-700 border border-slate-700 rounded-2xl transition-all group"
             >
@@ -55,7 +63,7 @@ const handleAction = (action: ConflictAction) => {
               </div>
             </button>
 
-            <button 
+            <button
               @click="handleAction('rename')"
               class="w-full flex items-center p-4 bg-slate-800/50 hover:bg-blue-500/10 border border-slate-700 hover:border-blue-500/50 rounded-2xl transition-all group"
             >
@@ -67,18 +75,32 @@ const handleAction = (action: ConflictAction) => {
             </button>
           </div>
 
-          <div class="mt-6 pt-4 border-t border-slate-800">
-            <label class="flex items-center space-x-3 cursor-pointer group">
-              <div class="relative flex items-center">
-                <input 
-                  type="checkbox" 
-                  v-model="applyToAll" 
-                  class="peer h-5 w-5 appearance-none rounded-md border border-slate-600 bg-slate-800 checked:bg-blue-600 checked:border-blue-500 transition-all cursor-pointer"
-                />
-                <svg class="absolute h-3.5 w-3.5 text-white pointer-events-none hidden peer-checked:block left-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <span class="text-xs text-slate-400 group-hover:text-slate-200 transition-colors">对本次任务中所有冲突应用此操作</span>
-            </label>
+          <div class="mt-5 pt-4 border-t border-slate-800">
+            <div class="relative w-1/3 min-w-[120px]">
+              <select
+                v-model="selectedScope"
+                class="w-full appearance-none bg-slate-800/80 border border-slate-700 rounded-lg px-2.5 py-1.5 pr-7 text-xs text-slate-300 outline-none cursor-pointer transition-all hover:border-slate-500 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30"
+              >
+                <option v-for="opt in scopeOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+              <ChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" :size="12" />
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1.5 pl-1">
+              <template v-if="hasPersistent">
+                当前默认：以后全部上传 → "{{ { overwrite: '覆盖', skip: '跳过', rename: '保留两者' }[ui.conflictState.options.persistentAction!] }}"
+              </template>
+              <template v-else-if="selectedScope === 'batch'">
+                本次任务中的后续冲突自动应用相同操作
+              </template>
+              <template v-else-if="selectedScope === 'persistent'">
+                保存为此服务器的默认冲突处理方式
+              </template>
+              <template v-else>
+                仅处理当前文件冲突
+              </template>
+            </p>
           </div>
         </div>
       </div>

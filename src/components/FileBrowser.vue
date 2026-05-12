@@ -8,7 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { useServerStore } from '../stores/server';
 import { useUIStore } from '../stores/ui';
-import { File, Folder, Upload, Download, Trash2, RefreshCw, Loader2, ChevronLeft, Home, HardDrive, ShieldAlert, LayoutGrid, List, Plus, Copy, ChevronDown, Terminal } from 'lucide-vue-next';
+import { File, Folder, Upload, Download, Trash2, RefreshCw, Loader2, ChevronLeft, Home, HardDrive, ShieldAlert, LayoutGrid, List, Plus, Copy, ChevronDown, Terminal, X } from 'lucide-vue-next';
 import InputModal from './InputModal.vue';
 
 const props = defineProps<{ server: Server; activeTab: string }>();
@@ -22,8 +22,43 @@ const isDownloading = ref(false);
 const errorMessage = ref('');
 
 // Conflict resolution state
+const PERSISTENT_CONFLICT_KEY = 'persistent_conflict_action';
+
 const globalConflictAction = ref<any>(null);
 const applyConflictToAll = ref(false);
+const persistentConflictAction = ref<string | null>(null);
+
+const loadPersistentConflictAction = (): string | null => {
+  try {
+    const saved = localStorage.getItem(PERSISTENT_CONFLICT_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed?.action || null;
+    }
+  } catch {}
+  return null;
+};
+
+const savePersistentConflictAction = (action: string) => {
+  localStorage.setItem(PERSISTENT_CONFLICT_KEY, JSON.stringify({ action }));
+  persistentConflictAction.value = action;
+};
+
+const clearPersistentConflict = () => {
+  localStorage.removeItem(PERSISTENT_CONFLICT_KEY);
+  persistentConflictAction.value = null;
+  globalConflictAction.value = null;
+  applyConflictToAll.value = false;
+};
+
+const actionLabels: Record<string, string> = {
+  overwrite: '覆盖',
+  skip: '跳过',
+  rename: '保留两者',
+};
+
+// Init from localStorage
+persistentConflictAction.value = loadPersistentConflictAction();
 
 const resetConflictState = () => {
   globalConflictAction.value = null;
@@ -176,11 +211,10 @@ const formatSize = (bytes: number) => {
 const checkRemoteExists = async (remotePath: string): Promise<boolean> => {
   if (!props.server) return false;
   try {
-    const result = await invoke<string>('execute_remote_command', {
-      server_name: props.server.name,
-      command: `[ -e "${remotePath}" ] && echo "exists"`
+    return await invoke<boolean>('check_remote_file_exists', {
+      serverName: props.server.name,
+      remotePath: remotePath,
     });
-    return result.trim() === 'exists';
   } catch (e) {
     return false;
   }
@@ -194,15 +228,21 @@ const resolvePathConflict = async (remotePath: string): Promise<{ finalPath: str
 
   const fileName = remotePath.split('/').pop() || 'file';
 
-  // Use global choice if "Apply to all" was checked
+  // Use global choice if "Apply to batch/persistent" was set
   let action = globalConflictAction.value;
 
   if (!applyConflictToAll.value || !action) {
-    const result = await ui.showConflict({ fileName });
+    const persistentAction = loadPersistentConflictAction();
+    const result = await ui.showConflict({ fileName, persistentAction: persistentAction as any });
     action = result.action;
-    if (result.applyToAll) {
+
+    if (result.scope === 'batch') {
       applyConflictToAll.value = true;
       globalConflictAction.value = action;
+    } else if (result.scope === 'persistent') {
+      applyConflictToAll.value = true;
+      globalConflictAction.value = action;
+      savePersistentConflictAction(action);
     }
   }
 
@@ -363,6 +403,13 @@ const processUploadPaths = async (paths: string[]) => {
   let totalFail = 0;
   isUploading.value = true;
   resetConflictState();
+
+  // Load persistent conflict action for this batch
+  const persistentAction = loadPersistentConflictAction();
+  if (persistentAction) {
+    globalConflictAction.value = persistentAction;
+    applyConflictToAll.value = true;
+  }
 
   for (const filePath of paths) {
     try {
@@ -715,6 +762,15 @@ watch(() => props.server.id, (newId, oldId) => {
           <Folder :size="14" />
           <span>打开</span>
         </button>
+        <div
+          v-if="persistentConflictAction"
+          class="flex items-center space-x-1 px-2 py-1 bg-slate-700/60 rounded-md text-[11px] text-slate-400"
+        >
+          <span>默认:<span class="text-slate-300 ml-0.5">{{ actionLabels[persistentConflictAction] || persistentConflictAction }}</span></span>
+          <button @click="clearPersistentConflict" class="hover:text-white transition-colors p-0.5">
+            <X :size="12" />
+          </button>
+        </div>
         <button @click="loadFiles" :disabled="isLoading" class="p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-all">
           <RefreshCw :class="{ 'animate-spin': isLoading }" :size="16" />
         </button>

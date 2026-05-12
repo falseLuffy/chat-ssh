@@ -66,6 +66,20 @@ async fn upload_to_server(
 }
 
 #[tauri::command]
+async fn check_remote_file_exists(
+    server_name: &str,
+    remote_path: &str,
+    state: State<'_, AppState>
+) -> Result<bool, String> {
+    let sessions = state.sessions.lock().unwrap();
+    if let Some(session) = sessions.get(server_name) {
+        session.check_file_exists(remote_path)
+    } else {
+        Err("Server not connected".to_string())
+    }
+}
+
+#[tauri::command]
 async fn open_terminal(
     server_name: String,
     cols: u32,
@@ -659,6 +673,7 @@ pub fn run() {
             disconnect_ssh,
             connect_ssh,
             upload_to_server,
+            check_remote_file_exists,
             open_terminal,
             write_to_terminal,
             open_script_terminal,
