@@ -3,6 +3,7 @@ use ssh2::Session;
 use std::io::prelude::*;
 use std::path::Path;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 #[derive(serde::Serialize)]
@@ -93,17 +94,40 @@ pub struct SystemService {
     pub description: String,
 }
 
+const UPLOAD_POOL_SIZE: usize = 4;
+
 pub struct SshSession {
     session: Mutex<Session>,
+    upload_pool: Vec<Mutex<Session>>,
+    next_upload: AtomicUsize,
     last_net_stats: Mutex<Option<(u64, u64, Instant)>>,
 }
 
 impl SshSession {
-    pub fn new(session: Session) -> Self {
+    pub fn new(session: Session, upload_sessions: Vec<Session>) -> Self {
         Self {
             session: Mutex::new(session),
+            upload_pool: upload_sessions.into_iter().map(Mutex::new).collect(),
+            next_upload: AtomicUsize::new(0),
             last_net_stats: Mutex::new(None),
         }
+    }
+
+    fn create_session(host: &str, username: &str, password: Option<&str>) -> Result<Session, String> {
+        let tcp = TcpStream::connect(host)
+            .map_err(|e| format!("Network connection failed ({}): {}", host, e))?;
+        let mut session = Session::new().map_err(|e| e.to_string())?;
+        session.set_tcp_stream(tcp);
+        session.handshake().map_err(|e| format!("SSH handshake failed: {}", e))?;
+        if let Some(pw) = password {
+            session.userauth_password(username, pw).map_err(|e| format!("Authentication failed: {}", e))?;
+        } else {
+            return Err("Password required for authentication".to_string());
+        }
+        if !session.authenticated() {
+            return Err("Authentication failed: User not authorized".to_string());
+        }
+        Ok(session)
     }
 
     pub fn connect(host: &str, username: &str, password: Option<&str>) -> Result<Self, String> {
@@ -113,38 +137,36 @@ impl SshSession {
             format!("{}:22", host)
         };
 
-        let tcp = TcpStream::connect(&final_host)
-            .map_err(|e| format!("Network connection failed ({}): {}", final_host, e))?;
-        
-        let mut session = Session::new().map_err(|e| e.to_string())?;
-        session.set_tcp_stream(tcp);
-        session.handshake().map_err(|e| format!("SSH handshake failed: {}", e))?;
+        let main_session = Self::create_session(&final_host, username, password)?;
 
-        if let Some(pw) = password {
-            session.userauth_password(username, pw).map_err(|e| format!("Authentication failed: {}", e))?;
-        } else {
-            return Err("Password required for authentication".to_string());
+        // 并行创建 4 个上传专用 SSH 连接
+        let mut handles = Vec::new();
+        for _ in 0..UPLOAD_POOL_SIZE {
+            let h = final_host.clone();
+            let u = username.to_string();
+            let p = password.map(|s| s.to_string());
+            handles.push(std::thread::spawn(move || {
+                Self::create_session(&h, &u, p.as_deref())
+            }));
+        }
+        let mut upload_sessions = Vec::new();
+        for handle in handles {
+            upload_sessions.push(handle.join().map_err(|_| "Upload session thread failed")??);
         }
 
-        if !session.authenticated() {
-            return Err("Authentication failed: User not authorized".to_string());
-        }
-
-        Ok(SshSession::new(session))
+        Ok(SshSession::new(main_session, upload_sessions))
     }
 
+    /// 使用连接池 + SFTP 并行上传文件
     pub fn upload_file(&self, local_data: &[u8], remote_path: &str) -> Result<(), String> {
-        let session = self.session.lock().unwrap();
+        let idx = self.next_upload.fetch_add(1, Ordering::Relaxed) % self.upload_pool.len();
+        let session = self.upload_pool[idx].lock().unwrap();
         session.set_blocking(true);
         let res = (|| {
-            let mut remote_file = session
-                .scp_send(Path::new(remote_path), 0o644, local_data.len() as u64, None)
-                .map_err(|e| e.to_string())?;
-            remote_file.write_all(local_data).map_err(|e| e.to_string())?;
-            remote_file.send_eof().map_err(|e| e.to_string())?;
-            remote_file.wait_eof().map_err(|e| e.to_string())?;
-            remote_file.close().map_err(|e| e.to_string())?;
-            remote_file.wait_close().map_err(|e| e.to_string())?;
+            let sftp = session.sftp().map_err(|e| format!("SFTP init failed: {}", e))?;
+            let path = Path::new(remote_path);
+            let mut remote_file = sftp.create(path).map_err(|e| format!("Create file failed: {}", e))?;
+            remote_file.write_all(local_data).map_err(|e| format!("Write failed: {}", e))?;
             Ok(())
         })();
         session.set_blocking(false);
@@ -218,26 +240,48 @@ impl SshSession {
     }
 
     pub fn download_file(&self, path: &str) -> Result<Vec<u8>, String> {
-        let session = self.session.lock().unwrap();
+        let idx = self.next_upload.fetch_add(1, Ordering::Relaxed) % self.upload_pool.len();
+        let session = self.upload_pool[idx].lock().unwrap();
         session.set_blocking(true);
-        let sftp_res = session.sftp().map_err(|e| e.to_string());
-        let res = match sftp_res {
-            Ok(sftp) => {
-                let file_res = sftp.open(Path::new(path)).map_err(|e| e.to_string());
-                match file_res {
-                    Ok(mut file) => {
-                        let mut data = Vec::new();
-                        let read_res = file.read_to_end(&mut data).map_err(|e| e.to_string());
-                        match read_res {
-                            Ok(_) => Ok(data),
-                            Err(e) => Err(e),
-                        }
-                    }
-                    Err(e) => Err(e),
+        let res = (|| {
+            let sftp = session.sftp().map_err(|e| e.to_string())?;
+            let mut file = sftp.open(Path::new(path)).map_err(|e| e.to_string())?;
+            let mut data = Vec::new();
+            file.read_to_end(&mut data).map_err(|e| e.to_string())?;
+            Ok(data)
+        })();
+        session.set_blocking(false);
+        res
+    }
+
+    /// 分块下载文件，通过回调报告进度 (downloaded_bytes, total_bytes)
+    pub fn download_file_with_progress<F: FnMut(u64, u64)>(
+        &self,
+        path: &str,
+        mut progress: F,
+    ) -> Result<Vec<u8>, String> {
+        let idx = self.next_upload.fetch_add(1, Ordering::Relaxed) % self.upload_pool.len();
+        let session = self.upload_pool[idx].lock().unwrap();
+        session.set_blocking(true);
+        let res = (|| {
+            let sftp = session.sftp().map_err(|e| e.to_string())?;
+            let p = Path::new(path);
+            let file_size = sftp.stat(p).map_err(|e| e.to_string())?.size.unwrap_or(0);
+            let mut file = sftp.open(p).map_err(|e| e.to_string())?;
+            let mut all_data = Vec::with_capacity(file_size as usize);
+            let mut buf = vec![0u8; 65536];
+            let mut downloaded = 0u64;
+            loop {
+                let n = file.read(&mut buf).map_err(|e| e.to_string())?;
+                if n == 0 {
+                    break;
                 }
+                all_data.extend_from_slice(&buf[..n]);
+                downloaded += n as u64;
+                progress(downloaded, file_size);
             }
-            Err(e) => Err(e),
-        };
+            Ok(all_data)
+        })();
         session.set_blocking(false);
         res
     }
@@ -260,6 +304,24 @@ impl SshSession {
                     }
                 }
             }
+        })();
+        session.set_blocking(false);
+        res
+    }
+
+    pub fn get_remote_file_size(&self, remote_path: &str) -> Result<u64, String> {
+        let session = self.session.lock().unwrap();
+        session.set_blocking(true);
+        let res = (|| {
+            let sftp = session.sftp().map_err(|e| format!("SFTP init failed: {}", e))?;
+            let stat = sftp.stat(Path::new(remote_path)).map_err(|e| {
+                if e.to_string().contains("No such file") || e.to_string().contains("does not exist") {
+                    format!("File not found: {}", remote_path)
+                } else {
+                    format!("SFTP stat failed: {}", e)
+                }
+            })?;
+            stat.size.ok_or_else(|| "File size not available".to_string())
         })();
         session.set_blocking(false);
         res

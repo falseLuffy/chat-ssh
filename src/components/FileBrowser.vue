@@ -1,10 +1,11 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch, defineProps } from 'vue';
 import type { Server } from '../stores/server';
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { open } from '@tauri-apps/plugin-dialog';
 import { openPath } from '@tauri-apps/plugin-opener';
 import { readFile, writeFile, stat, readDir } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { useServerStore } from '../stores/server';
 import { useUIStore } from '../stores/ui';
@@ -19,6 +20,8 @@ const files = ref<any[]>([]);
 const isLoading = ref(false);
 const isUploading = ref(false);
 const isDownloading = ref(false);
+const downloadProgress = ref<{ [name: string]: { percent: number } }>({});
+let unlistenDownload: (() => void) | null = null;
 const errorMessage = ref('');
 
 // Conflict resolution state
@@ -199,6 +202,8 @@ const goBack = () => {
   navigateTo(newPath);
 };
 
+const COMPRESS_THRESHOLD = 100 * 1024 * 1024; // 100MB
+
 const formatSize = (bytes: number) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -292,6 +297,54 @@ const joinLocalPath = (base: string, name: string): string => {
   return base.endsWith(sep) ? base + name : base + sep + name;
 };
 
+const UPLOAD_CONCURRENCY = 4;
+
+const COMPRESSORS = [
+  { name: 'zstd', ext: '.zst', bin: 'zstd' },
+  { name: 'pigz', ext: '.gz', bin: 'pigz' },
+  { name: 'gzip', ext: '.gz', bin: 'gzip' },
+  { name: 'bzip2', ext: '.bz2', bin: 'bzip2' },
+  { name: 'xz', ext: '.xz', bin: 'xz' },
+];
+
+// 探测远程服务器可用的压缩工具，按优先级返回第一个找到的
+async function probeCompressor(serverName: string): Promise<{ name: string; ext: string; bin: string } | null> {
+  const bins = COMPRESSORS.map(c => c.bin).join(' ');
+  try {
+    const result = await invoke<string>('execute_remote_command', {
+      serverName,
+      command: `which ${bins} 2>/dev/null || echo ''`,
+    });
+    const first = result.trim().split('\n')[0]?.trim();
+    if (first) {
+      const binName = first.split('/').pop() || first;
+      return COMPRESSORS.find(c => c.bin === binName) || null;
+    }
+  } catch { /* 探测失败则返回 null */ }
+  return null;
+}
+
+// Upload a batch of file tasks with limited concurrency
+const uploadFileBatch = async (
+  tasks: { localPath: string; remotePath: string; name: string }[],
+  counters: { ok: number; fail: number }
+): Promise<void> => {
+  for (let i = 0; i < tasks.length; i += UPLOAD_CONCURRENCY) {
+    const chunk = tasks.slice(i, i + UPLOAD_CONCURRENCY);
+    await Promise.all(chunk.map(async ({ localPath, remotePath, name }) => {
+      try {
+        const content = await readFile(localPath);
+        addLog(`上传中: ${name} (${formatSize(content.length)}) → ${remotePath}`, 'info');
+        const ok = await uploadSingleFile(content, remotePath);
+        ok ? counters.ok++ : counters.fail++;
+      } catch (e) {
+        addLog(`✗ 读取文件失败: ${localPath} — ${String(e)}`, 'error');
+        counters.fail++;
+      }
+    }));
+  }
+};
+
 // Recursively upload a local directory tree to a remote base path
 const uploadDirectoryRecursive = async (
   localPath: string,
@@ -300,7 +353,10 @@ const uploadDirectoryRecursive = async (
 ): Promise<void> => {
   if (!props.server) return;
 
-  // Create remote directory
+  // 检查远程目录是否已存在（优化：不存在则跳过逐文件冲突检查）
+  const dirExists = await checkRemoteExists(remotePath);
+
+  // 创建远程目录（始终执行，mkdir -p 幂等）
   try {
     await invoke('execute_remote_command', {
       serverName: props.server.name,
@@ -322,31 +378,43 @@ const uploadDirectoryRecursive = async (
     return;
   }
 
+  const fileConflictPromises: Promise<{ localPath: string; remotePath: string; name: string } | null>[] = [];
+
+  // 并行冲突检查 + 收集子文件夹任务
+  const dirPromises: Promise<void>[] = [];
+
   for (const entry of entries) {
     if (!entry.name) continue;
     const localEntry = joinLocalPath(localPath, entry.name);
     const remoteEntry = `${remotePath}/${entry.name}`;
 
     if (entry.isDirectory) {
-      await uploadDirectoryRecursive(localEntry, remoteEntry, counters);
+      dirPromises.push(uploadDirectoryRecursive(localEntry, remoteEntry, counters));
     } else if (entry.isFile) {
-      const { finalPath, skip } = await resolvePathConflict(remoteEntry);
-      if (skip) {
-        addLog(`跳过文件: ${entry.name}`, 'info');
-        continue;
-      }
-
-      addLog(`上传中: ${entry.name} → ${finalPath}`, 'info');
-      try {
-        const content = await readFile(localEntry);
-        const ok = await uploadSingleFile(content, finalPath);
-        ok ? counters.ok++ : counters.fail++;
-      } catch (e) {
-        addLog(`✗ 读取文件失败: ${localEntry} — ${String(e)}`, 'error');
-        counters.fail++;
+      if (dirExists) {
+        fileConflictPromises.push(
+          resolvePathConflict(remoteEntry).then(({ finalPath, skip }) => {
+            if (skip) {
+              addLog(`跳过文件: ${entry.name}`, 'info');
+              return null;
+            }
+            return { localPath: localEntry, remotePath: finalPath, name: entry.name };
+          })
+        );
+      } else {
+        fileConflictPromises.push(
+          Promise.resolve({ localPath: localEntry, remotePath: remoteEntry, name: entry.name })
+        );
       }
     }
   }
+
+  // 并行解析所有文件的冲突，然后上传
+  const resolved = (await Promise.all(fileConflictPromises)).filter(Boolean) as { localPath: string; remotePath: string; name: string }[];
+  await uploadFileBatch(resolved, counters);
+
+  // 并行处理所有子文件夹
+  await Promise.all(dirPromises);
 };
 
 const handleUpload = async () => {
@@ -411,6 +479,8 @@ const processUploadPaths = async (paths: string[]) => {
     applyConflictToAll.value = true;
   }
 
+  const fileTasks: { localPath: string; remotePath: string; name: string }[] = [];
+
   for (const filePath of paths) {
     try {
       const fileStat = await stat(filePath);
@@ -444,19 +514,20 @@ const processUploadPaths = async (paths: string[]) => {
           continue;
         }
 
-        const content = await readFile(filePath);
-        addLog(`上传中: ${fileName} (${formatSize(content.length)}) → ${finalPath}`, 'info');
-        const ok = await uploadSingleFile(content, finalPath);
-        ok ? totalOk++ : totalFail++;
-        if (ok) ui.showToast(`✓ 上传成功: ${fileName}`, 'success');
+        fileTasks.push({ localPath: filePath, remotePath: finalPath, name: fileName });
       }
     } catch (err) {
       console.error('上传失败:', err);
-      ui.showToast(`上传失败: ${String(err)}`, 'error', 5000);
       addLog(`✗ 上传失败: ${filePath} — ${String(err)}`, 'error');
       totalFail++;
     }
   }
+
+  // 4 个并发上传所有收集到的文件
+  const fileCounters = { ok: 0, fail: 0 };
+  await uploadFileBatch(fileTasks, fileCounters);
+  totalOk += fileCounters.ok;
+  totalFail += fileCounters.fail;
 
   isUploading.value = false;
   if (totalOk > 0 || totalFail > 0) {
@@ -493,31 +564,148 @@ const setupDragDropListener = async () => {
 };
 
 const handleDownload = async (file: any) => {
-  if (!props.server || file.is_dir) return;
+  if (!props.server) return;
+
+  // 收集要下载的文件（选中文件 + 右键点击的文件）
+  const nameSet = new Set<string>();
+  const filesToDownload: any[] = [];
+
+  if (file && !file.is_dir && !nameSet.has(file.name)) {
+    nameSet.add(file.name);
+    filesToDownload.push(file);
+  }
+  for (const f of files.value) {
+    if (selectedFiles.value.has(f.name) && !f.is_dir && !nameSet.has(f.name)) {
+      nameSet.add(f.name);
+      filesToDownload.push(f);
+    }
+  }
+
+  if (filesToDownload.length === 0) {
+    ui.showToast('没有可下载的文件', 'warning');
+    return;
+  }
 
   try {
-    const savePath = await save({
-      defaultPath: file.name,
-      title: '保存文件',
-    });
+    const dir = await open({ directory: true, title: '选择保存目录' });
+    if (!dir) return;
 
-    if (savePath) {
-      isDownloading.value = true;
-      const remotePath = currentPath.value.endsWith('/')
-        ? `${currentPath.value}${file.name}`
-        : `${currentPath.value}/${file.name}`;
+    isDownloading.value = true;
+    downloadProgress.value = {};
+    const label = filesToDownload.length === 1 ? filesToDownload[0].name : `${filesToDownload.length} 个文件`;
+    addLog(`⬇ 开始下载: ${label}`, 'info');
+    let totalOk = 0;
+    let totalFail = 0;
 
-      const content = await invoke<number[]>('download_remote_file', {
-        serverName: props.server.name,
-        path: remotePath,
-      });
-
-      await writeFile(savePath, new Uint8Array(content));
+    // Step 1: 逐文件检查大小，大文件询问是否先压缩
+    interface DownloadTask {
+      f: any;
+      remotePath: string;
+      localPath: string;
+      downloadPath: string;
+      useCompression: boolean;
+      ext: string;
     }
+    const tasks: DownloadTask[] = [];
+
+    for (const f of filesToDownload) {
+      const remotePath = currentPath.value.endsWith('/')
+        ? `${currentPath.value}${f.name}`
+        : `${currentPath.value}/${f.name}`;
+      let localPath = dir.endsWith('/') || dir.endsWith('\\')
+        ? `${dir}${f.name}`
+        : `${dir}/${f.name}`;
+
+      let useCompression = false;
+      let compressorInfo: { name: string; ext: string; bin: string } | null = null;
+
+      try {
+        const fileSize = await invoke<number>('get_remote_file_size', {
+          serverName: props.server.name,
+          path: remotePath,
+        });
+        if (fileSize > COMPRESS_THRESHOLD) {
+          compressorInfo = await probeCompressor(props.server.name);
+          if (compressorInfo) {
+            const compressedName = f.name + compressorInfo.ext;
+            const shouldCompress = await ui.showConfirm({
+              title: '文件较大，是否先压缩后下载？',
+              message: `文件名: ${f.name}\n大小: ${formatSize(fileSize)}\n压缩方式: ${compressorInfo.name}\n压缩后: ${compressedName}`,
+              confirmText: `用 ${compressorInfo.name} 压缩并下载`,
+              cancelText: '直接下载',
+              type: 'info',
+            });
+            useCompression = shouldCompress;
+          } else {
+            addLog(`未在服务器上找到压缩工具，直接下载: ${f.name}`, 'info');
+          }
+        }
+      } catch (e) {
+        console.warn('获取文件大小失败:', e);
+      }
+
+      let downloadPath = remotePath;
+
+      if (useCompression && compressorInfo) {
+        const gzRemote = remotePath + compressorInfo.ext;
+        try {
+          await invoke('execute_remote_command', {
+            serverName: props.server.name,
+            command: `${compressorInfo.bin} -c "${remotePath}" > "${gzRemote}"`,
+          });
+          downloadPath = gzRemote;
+          localPath += compressorInfo.ext;
+          addLog(`已压缩: ${f.name} → ${f.name}${compressorInfo.ext} (${compressorInfo.name})`, 'info');
+        } catch (e) {
+          addLog(`压缩失败: ${f.name} — ${String(e)}，直接下载原文件`, 'error');
+          useCompression = false;
+        }
+      }
+
+      tasks.push({ f, remotePath, localPath, downloadPath, useCompression, ext: compressorInfo?.ext || '' });
+    }
+
+    // Step 2: 并发下载（保持 4 个并发）
+    for (let i = 0; i < tasks.length; i += UPLOAD_CONCURRENCY) {
+      const chunk = tasks.slice(i, i + UPLOAD_CONCURRENCY);
+      await Promise.all(chunk.map(async (task) => {
+        const displayName = task.useCompression ? task.f.name + task.ext : task.f.name;
+        addLog(`下载中: ${displayName}`, 'info');
+        try {
+          const content = await invoke<number[]>('download_remote_file', {
+            serverName: props.server.name,
+            path: task.downloadPath,
+          });
+          await writeFile(task.localPath, new Uint8Array(content));
+          const suffix = task.useCompression ? ' (压缩后)' : '';
+          addLog(`✓ 下载成功: ${task.f.name}${suffix} (${formatSize(content.length)})`, 'success');
+          totalOk++;
+        } catch (e) {
+          addLog(`✗ 下载失败: ${task.f.name} — ${String(e)}`, 'error');
+          totalFail++;
+        }
+
+        // 清理远程临时 .gz 文件
+        if (task.useCompression) {
+          try {
+            await invoke('execute_remote_command', {
+              serverName: props.server.name,
+              command: `rm -f "${task.downloadPath}"`,
+            });
+          } catch { /* 忽略清理失败 */ }
+        }
+      }));
+    }
+
+    addLog(`— 下载完成: 成功 ${totalOk} 个，失败 ${totalFail} 个`, totalFail > 0 ? 'error' : 'success');
+    ui.showToast(`下载完成: ${totalOk} 成功`, totalFail > 0 ? 'warning' : 'success');
   } catch (error) {
     console.error('下载失败:', error);
+    ui.showToast('下载失败: ' + String(error), 'error', 5000);
   } finally {
     isDownloading.value = false;
+    // keep last progress visible briefly before clearing
+    setTimeout(() => { downloadProgress.value = {}; }, 1500);
   }
 };
 
@@ -677,12 +865,24 @@ const isDragging = ref(false);
 onMounted(() => {
   setupDragDropListener();
   window.addEventListener('keydown', handleKeyDown);
+  listen<{ server: string; path: string; downloaded: number; total: number }>('download-progress', (event) => {
+    if (event.payload.server !== props.server?.name) return;
+    const name = event.payload.path.split('/').pop() || event.payload.path;
+    const total = event.payload.total;
+    const downloaded = event.payload.downloaded;
+    const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0;
+    downloadProgress.value = { ...downloadProgress.value, [name]: { percent } };
+  }).then((fn) => { unlistenDownload = fn; });
 });
 
 onUnmounted(() => {
   if (unlistenDragDrop) {
     unlistenDragDrop();
     unlistenDragDrop = null;
+  }
+  if (unlistenDownload) {
+    unlistenDownload();
+    unlistenDownload = null;
   }
   window.removeEventListener('keydown', handleKeyDown);
 });
@@ -791,6 +991,24 @@ watch(() => props.server.id, (newId, oldId) => {
             <List :size="14" />
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Download Progress -->
+    <div
+      v-if="isDownloading && Object.keys(downloadProgress).length > 0"
+      class="flex-shrink-0 border-b border-slate-800 bg-slate-900/80 px-4 py-2 space-y-1.5"
+    >
+      <div class="text-[10px] text-slate-500 font-medium mb-1.5">下载进度</div>
+      <div v-for="(p, name) in downloadProgress" :key="name" class="flex items-center space-x-2">
+        <span class="text-[11px] text-slate-300 truncate flex-1 min-w-0">{{ name }}</span>
+        <div class="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden flex-shrink-0">
+          <div
+            class="h-full bg-emerald-500 rounded-full transition-all duration-300"
+            :style="{ width: p.percent + '%' }"
+          ></div>
+        </div>
+        <span class="text-[10px] text-slate-500 w-8 text-right flex-shrink-0">{{ p.percent }}%</span>
       </div>
     </div>
 

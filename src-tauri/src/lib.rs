@@ -56,13 +56,13 @@ async fn upload_to_server(
     file_content: Vec<u8>,
     state: State<'_, AppState>
 ) -> Result<String, String> {
-    let sessions = state.sessions.lock().unwrap();
-    if let Some(session) = sessions.get(server_name) {
-        session.upload_file(&file_content, remote_path)?;
-        Ok("Upload successful".to_string())
-    } else {
-        Err("Server not connected".to_string())
-    }
+    let session = {
+        let sessions = state.sessions.lock().unwrap();
+        sessions.get(server_name).cloned().ok_or("Server not connected")?
+    };
+    // 释放 sessions 锁，允许多个 upload_to_server 同时获取 Arc 并发执行
+    session.upload_file(&file_content, remote_path)?;
+    Ok("Upload successful".to_string())
 }
 
 #[tauri::command]
@@ -381,14 +381,37 @@ async fn delete_remote_file(
 async fn download_remote_file(
     server_name: &str,
     path: &str,
-    state: State<'_, AppState>
+    window: tauri::Window,
+    state: State<'_, AppState>,
 ) -> Result<Vec<u8>, String> {
-    let sessions = state.sessions.lock().unwrap();
-    if let Some(session) = sessions.get(server_name) {
-        session.download_file(path)
-    } else {
-        Err("Server not connected".to_string())
-    }
+    let session = {
+        let sessions = state.sessions.lock().unwrap();
+        sessions.get(server_name).cloned().ok_or("Server not connected")?
+    };
+    let remote_path = path.to_string();
+    let svr = server_name.to_string();
+    let path_for_borrow = remote_path.clone();
+    session.download_file_with_progress(&path_for_borrow, move |downloaded, total| {
+        let _ = window.emit("download-progress", serde_json::json!({
+            "server": svr,
+            "path": remote_path,
+            "downloaded": downloaded,
+            "total": total,
+        }));
+    })
+}
+
+#[tauri::command]
+async fn get_remote_file_size(
+    server_name: &str,
+    path: &str,
+    state: State<'_, AppState>,
+) -> Result<u64, String> {
+    let session = {
+        let sessions = state.sessions.lock().unwrap();
+        sessions.get(server_name).cloned().ok_or("Server not connected")?
+    };
+    session.get_remote_file_size(path)
 }
 
 #[tauri::command]
@@ -685,6 +708,7 @@ pub fn run() {
             list_remote_files,
             delete_remote_file,
             download_remote_file,
+            get_remote_file_size,
             execute_script,
             analyze_script_with_ai,
             execute_remote_command,
